@@ -313,8 +313,6 @@ export function useComposerSubmit({
     if (routable && hasConnectionRequest(sessionId)) {
       void skipConnectionRequest(sessionId)
     }
-
-    return false
   }
 
   const submitDraft = () => {
