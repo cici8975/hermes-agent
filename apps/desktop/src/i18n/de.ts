@@ -1572,13 +1572,7 @@ export const deOverrides = {
         'Wie groß eine lokale Datei sein darf, die Desktop für Vorschauen und Bildanhänge lädt, in MB. Standard ist 16. Remote-Anhänge ohne Bild verwenden ein eigenes Limit von 256 MB. Ein sehr hoher Wert lädt die gesamte Datei in den Speicher, was die App einfrieren oder abstürzen lassen kann.',
       attachmentSizeUnit: 'MB',
       attachmentSizeLabel: 'Maximale Vorschau-/Bildladegröße in Megabyte',
-      showOptions: 'Optionen anzeigen',
-      developerTitle: 'Entwickler',
-      resetOnboardingTitle: 'Onboarding zurücksetzen',
-      resetOnboardingDesc:
-        'Löscht die Einrichtungs-Chats, baut das Einrichtungsprofil neu auf und startet die Ersteinrichtung erneut. Ihre eigenen Profile, Chats und Plugins bleiben erhalten.',
-      resetOnboardingAction: 'Zurücksetzen',
-      resetOnboardingFailed: 'Onboarding konnte nicht zurückgesetzt werden'
+      showOptions: 'Optionen anzeigen'
     },
     hudModifier: {
       title: 'Tippen, um das HUD aufzurufen',
@@ -4385,20 +4379,6 @@ export const deOverrides = {
         'Das Backend kam nicht wieder online. Das Update wurde möglicherweise nicht abgeschlossen — prüfen Sie den Backend-Host.'
     }
   },
-  handoffTour: {
-    localTitle: 'Dieser Rechner kann Modelle lokal ausführen',
-    localText: (model: string) =>
-      `${model} passt zu Ihrer Hardware. Es läuft kostenlos, und Chats verlassen Ihren Computer nie. Wählen Sie es jederzeit hier im Modellmenü.`,
-    profileTitle: 'Ihre erste Aufgabe läuft im Standardprofil',
-    profileText:
-      'Diese Leiste wechselt die Profile. Das jetzt hervorgehobene ist „Standard", wo die Aufgaben-Session lebt. Das andere ist das Einrichtungsprofil, wo der Willkommens-Chat lebt.',
-    sessionsTitle: 'Jedes Profil führt seine eigenen Sessions',
-    sessionsText:
-      'Diese Liste gehört zum Standardprofil. „Neue Session“ startet eine im jeweils gewählten Profil. Wechseln Sie Profile über die Leiste, und die Liste ändert sich mit.',
-    stayTitle: 'Hermes ist einen Klick entfernt',
-    stayText:
-      'Wechseln Sie ins Einrichtungsprofil und öffnen Sie „Willkommen bei Hermes“, wenn Sie Hilfe brauchen. Es bleibt dort.'
-  },
   install: {
     stageStates: {
       pending: 'Ausstehend',
@@ -5276,31 +5256,6 @@ export const deOverrides = {
         'Diese Frage hat die App nicht erreicht und kann hier nicht beantwortet werden. Klicken Sie auf Stopp, um den Durchgang zu beenden, und antworten Sie dann im Chat.'
     },
     themePicker: deThemePicker,
-    setupChoose: {
-      kinds: {
-        accent: 'Akzentfarbe',
-        connectors: 'Apps',
-        layout: 'Layout',
-        plugins: 'Plugins',
-        theme: 'Erscheinungsbild'
-      },
-      loading: 'Optionen werden geladen…',
-      unavailable: 'Diese Liste ist gerade nicht verfügbar. Antworten Sie stattdessen im Chat.',
-      findApp: 'App suchen',
-      customColor: 'Eigene Farbe',
-      plugin: 'Plugin',
-      startsLater: 'Wir richten sie ein, wenn Sie loslegen.'
-    },
-    startChat: {
-      starting: title => `„${title}“ wird gestartet…`,
-      startingUntitled: 'Chat wird gestartet…',
-      untitled: 'Neuer Chat',
-      notStarted: 'Der Chat wurde nicht gestartet',
-      inProfile: profile => `In ${profile}`,
-      open: 'Öffnen',
-      openFailed: 'Der Chat konnte nicht geöffnet werden',
-      retry: 'Erneut versuchen'
-    },
     catalogInstall: {
       preparing: 'Installation wird vorbereitet…',
       install: 'Installieren',

@@ -1570,12 +1570,6 @@ export const esOverrides = {
       disableF12Title: 'Desactivar DevTools con F12',
       disableF12Desc:
         'Impide que F12 abra las herramientas para desarrolladores. Ctrl+Shift+I (o Cmd+Opt+I en Mac) sigue funcionando.',
-      developerTitle: 'Desarrollador',
-      resetOnboardingTitle: 'Restablecer la configuración inicial',
-      resetOnboardingDesc:
-        'Borra los chats de configuración, reconstruye el perfil de configuración y vuelve a ejecutar la configuración inicial. Tus propios perfiles, chats y plugins se conservan.',
-      resetOnboardingAction: 'Restablecer',
-      resetOnboardingFailed: 'No se pudo restablecer la configuración inicial',
       attachmentSizeTitle: 'Tamaño máximo de vista previa / carga de imagen',
       attachmentSizeDesc:
         'Tamaño máximo de archivo local que el escritorio cargará para vistas previas y adjuntos de imagen, en MB. El valor por defecto es 16. Los adjuntos remotos no-imagen usan un límite separado de 256 MB. Un valor muy alto carga el archivo completo en memoria y puede congelar o bloquear la app.',
@@ -4381,19 +4375,6 @@ export const esOverrides = {
         'El backend no volvió a estar disponible. Puede que la actualización no se haya completado; revisa el host del backend.'
     }
   },
-  handoffTour: {
-    localTitle: 'Este equipo puede ejecutar modelos localmente',
-    localText: (model: string) =>
-      `${model} encaja con tu hardware. Funciona gratis y los chats nunca salen de este equipo. Elígelo aquí, en el menú de modelos, cuando quieras.`,
-    profileTitle: 'Tu primera tarea se ejecuta en el perfil predeterminado',
-    profileText:
-      'Esta barra cambia de perfil. El que está iluminado ahora es el predeterminado, donde está la sesión de la tarea. El otro es el perfil de configuración, donde está el chat de bienvenida.',
-    sessionsTitle: 'Cada perfil tiene sus propias sesiones',
-    sessionsText:
-      'Esta lista pertenece al perfil predeterminado. Nueva sesión crea una en el perfil que esté seleccionado. Cambia de perfil en la barra y la lista cambia con él.',
-    stayTitle: 'Hermes está a un clic',
-    stayText: 'Cambia al perfil de configuración y abre Bienvenida a Hermes siempre que necesites ayuda. Se queda ahí.'
-  },
   install: {
     stageStates: {
       pending: 'Pendiente',
@@ -5271,31 +5252,6 @@ export const esOverrides = {
         'Esta pregunta no llegó a la app, así que no se puede responder aquí. Pulsa Detener para terminar el turno y luego responde en el chat.'
     },
     themePicker: esThemePicker,
-    setupChoose: {
-      kinds: {
-        accent: 'Color de acento',
-        connectors: 'Apps',
-        layout: 'Diseño',
-        plugins: 'Plugins',
-        theme: 'Apariencia'
-      },
-      loading: 'Cargando opciones…',
-      unavailable: 'Esta lista no está disponible ahora. Responde en el chat.',
-      findApp: 'Buscar una app',
-      customColor: 'Color personalizado',
-      plugin: 'Plugin',
-      startsLater: 'Los configuraremos cuando empieces.'
-    },
-    startChat: {
-      starting: title => `Iniciando «${title}»…`,
-      startingUntitled: 'Iniciando un chat…',
-      untitled: 'Chat nuevo',
-      notStarted: 'El chat no se inició',
-      retry: 'Reintentar',
-      inProfile: profile => `En ${profile}`,
-      open: 'Abrir',
-      openFailed: 'No se pudo abrir el chat'
-    },
     catalogInstall: {
       preparing: 'Preparando la instalación…',
       install: 'Instalar',
