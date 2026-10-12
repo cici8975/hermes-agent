@@ -26,6 +26,7 @@ import {
 } from '@/store/prompts'
 import { requestRoute } from '@/store/recovery-requests'
 import { forgetServerRequest } from '@/store/server-requests'
+import { clearSetupBeat } from '@/store/setup-beat'
 import { clearThemePick } from '@/store/theme-pick'
 
 import type { GatewayEventContext } from './types'
@@ -183,7 +184,7 @@ export function handleInputRequestEvent(ctx: GatewayEventContext): boolean {
     clearVaultSaveLoginRequest(sessionId, id)
   } else if ($vaultUnlockRequests.get()[key]?.requestId === id) {
     clearVaultUnlockRequest(sessionId, id)
-  } else if (sessionId && clearThemePick(id, sessionId)) {
+  } else if (sessionId && (clearThemePick(id, sessionId) || clearSetupBeat(id, sessionId))) {
     deps.updateSessionState(sessionId, state => ({ ...state, needsInput: false }))
   }
 

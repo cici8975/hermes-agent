@@ -1,4 +1,4 @@
-import { JSON_RPC_INTERNAL_ERROR } from '@hermes/shared'
+import { JSON_RPC_INTERNAL_ERROR, type SetupBeat } from '@hermes/shared'
 
 import {
   hasLivePreviewSurface,
@@ -38,6 +38,7 @@ import {
   previewScopeForRuntime,
   storedSessionIdForRuntimeId
 } from '@/store/session-states'
+import { parkSetupBeat } from '@/store/setup-beat'
 import { parkThemePick } from '@/store/theme-pick'
 import { requestScrollToBottom } from '@/store/thread-scroll'
 import { $toursEnabled } from '@/store/tours'
@@ -725,6 +726,38 @@ const themePick: Handler = ctx => {
   notifyInput(ctx, translateNow(`assistant.themePicker.${picker}`))
 }
 
+const SETUP_BEATS: readonly SetupBeat[] = ['name', 'theme', 'layout', 'connectors', 'plugins', 'tour', 'build']
+
+const setupBeat: Handler = ctx => {
+  const { request, sessionId } = ctx
+  const beat = SETUP_BEATS.find(candidate => candidate === request.params.beat)
+
+  if (!sessionId || !beat) {
+    request.respond({})
+
+    return
+  }
+
+  if (declineIfSessionStopped(ctx)) {
+    return
+  }
+
+  const { card } = request.params
+  const question = str(request.params.question)
+
+  rememberServerRequest(request)
+  parkSetupBeat({
+    beat,
+    // SAFETY: a non-array object is the contract's `card: Record<string, unknown>`.
+    card: typeof card === 'object' && card !== null && !Array.isArray(card) ? (card as Record<string, unknown>) : {},
+    question,
+    requestId: request.id,
+    sessionId
+  })
+  markNeedsInput(ctx)
+  notifyInput(ctx, question)
+}
+
 /** Method → handler. Every `ServerRequestMap` key the desktop answers. */
 export const SERVER_REQUEST_HANDLERS: Record<string, Handler> = {
   approval,
@@ -733,6 +766,7 @@ export const SERVER_REQUEST_HANDLERS: Record<string, Handler> = {
   'preview.act': previewAct,
   'preview.read': previewRead,
   secret,
+  setup_beat: setupBeat,
   sudo,
   'terminal.read': terminalRead,
   'theme.apply': themeApply,

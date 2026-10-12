@@ -2,6 +2,7 @@ import { isPreviewableTarget, toolPreviewOutcome } from '@/components/assistant-
 import { toolCallOwnerMessageId } from '@/lib/chat-messages'
 import { invalidateSlashCompletions } from '@/lib/slash-completion-cache'
 import { refreshBackgroundProcesses } from '@/store/composer-status'
+import { noteSetupBeatResult } from '@/store/onboarding-run'
 import { flashPetActivity, setPetActivity } from '@/store/pet'
 import { recordPreviewArtifact, reofferPreviewArtifact } from '@/store/preview-status'
 import { $sessionStates, storedSessionIdForRuntimeId } from '@/store/session-states'
@@ -103,6 +104,10 @@ export function handleToolEvent(ctx: GatewayEventContext): boolean {
 
       if (!sessionInterrupted(sessionId)) {
         recordToolPreview(ctx, sessionId, state?.cwd ?? '', pendingProduction)
+      }
+
+      if (payload?.name === 'setup_beat' && !event.replayed) {
+        noteSetupBeatResult(payload.result)
       }
 
       if (isActiveEvent) {
