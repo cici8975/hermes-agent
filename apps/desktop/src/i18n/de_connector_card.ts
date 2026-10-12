@@ -32,5 +32,13 @@ export const deConnectorCard: TranslationOverrides['connectors'] = {
   authorizedToolsUnavailable: 'Autorisiert. Tools nicht verfügbar.',
   required: 'Erforderlich',
   namedAccount: (app: string, alias: string) => `Hermes hat dieses ${app}-Konto ${alias} genannt.`,
-  renameAccount: 'Umbenennen'
+  renameAccount: 'Umbenennen',
+  directory: {
+    suggested: 'Vorgeschlagen',
+    allApps: 'Alle Apps',
+    receiptConnected: apps => `Verbunden: ${apps}`,
+    receiptNone: 'Keine Apps verbunden',
+    receiptSaid: 'Im Chat beantwortet',
+    receiptTimedOut: 'Nach 5 Minuten geschlossen'
+  }
 }

@@ -32,5 +32,13 @@ export const enConnectorCard: Translations['connectors'] = {
   authorizedToolsUnavailable: 'Authorized. Tools unavailable.',
   required: 'Required',
   namedAccount: (app: string, alias: string) => `Hermes named this ${app} account ${alias}.`,
-  renameAccount: 'Rename'
+  renameAccount: 'Rename',
+  directory: {
+    suggested: 'Suggested',
+    allApps: 'All apps',
+    receiptConnected: apps => `Connected: ${apps}`,
+    receiptNone: 'No apps connected',
+    receiptSaid: 'Answered in chat',
+    receiptTimedOut: 'Closed after 5 minutes'
+  }
 }

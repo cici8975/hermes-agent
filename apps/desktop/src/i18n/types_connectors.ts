@@ -31,6 +31,17 @@ export interface ConnectorCardTranslations {
   required: string
   namedAccount: (app: string, alias: string) => string
   renameAccount: string
+  directory: ConnectorDirectoryTranslations
+}
+
+/** The chat's directory card (`manage_connections` display) and the line it collapses to. */
+export interface ConnectorDirectoryTranslations {
+  suggested: string
+  allApps: string
+  receiptConnected: (apps: string) => string
+  receiptNone: string
+  receiptSaid: string
+  receiptTimedOut: string
 }
 
 export interface ConnectorAccountsTranslations {

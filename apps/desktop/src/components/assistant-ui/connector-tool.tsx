@@ -7,9 +7,13 @@ import { useInRouterContext, useNavigate } from 'react-router'
 import { accountRenameRoute } from '@/app/capabilities/connectors/data/deep-link'
 import { useSessionView } from '@/app/chat/session-view'
 import { sessionRoute } from '@/app/routes'
+import { ConnectorDirectoryCard } from '@/components/assistant-ui/connector-directory-card'
 import { ToolFallback } from '@/components/assistant-ui/tool/fallback'
+import { useConnectionOwner } from '@/components/assistant-ui/use-connection-owner'
+import { SCAFFOLD_LABEL_CLASS, ScaffoldRow } from '@/components/chat/scaffold-row'
 import { Button } from '@/components/ui/button'
 import { ConnectorCard, ConnectorRow, type ConnectorRowMark, ConnectorSummary } from '@/components/ui/connector-card'
+import { ConnectorLogo } from '@/components/ui/connector-logo'
 import { useI18n } from '@/i18n'
 import {
   connectorAuthorizationUrl,
@@ -33,34 +37,6 @@ import {
 } from '@/store/connection-request'
 import { requestGatewayForAgent } from '@/store/gateway'
 import { notifyError } from '@/store/notifications'
-
-/** Resolve that owner. Null until it resolves and null when it cannot: a card RPC must reach the
- *  gateway that holds the operation, never whichever one the window happens to have in front. */
-export function useConnectionOwner(sessionId: null | string, active: boolean): ConnectionOwner | null {
-  const [owner, setOwner] = useState<ConnectionOwner | null>(null)
-
-  useEffect(() => {
-    if (!sessionId || !active) {
-      setOwner(null)
-
-      return
-    }
-
-    let cancelled = false
-
-    void connectionOwnerFor(sessionId, 'connectors.connect').then(resolved => {
-      if (!cancelled) {
-        setOwner(resolved)
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [active, sessionId])
-
-  return owner
-}
 
 /** The browser leg of a connection came back through `hermes://connections/done`. Show the session
  *  that opened the operation and tell its backend to read the account now instead of at its next
@@ -171,11 +147,74 @@ export function ConnectorTool(props: ToolCallMessagePartProps) {
   // Owner routes and hints are keyed by the stored id, not the runtime id the events carry.
   const owner = useConnectionOwner(storedId, live)
 
+  if (recordOf(props.args).action === 'display') {
+    return <ConnectorDirectoryTool live={live} request={request} result={props.result} />
+  }
+
   if (!live || !request) {
     return <ToolFallback {...props} />
   }
 
   return owner ? <ConnectorOffer owner={owner} request={request} /> : null
+}
+
+interface ConnectorDirectoryToolProps {
+  live: boolean
+  request: ConnectionRequest | null
+  result: unknown
+}
+
+/** The display card while its operation is open; afterwards the one line the result says. */
+function ConnectorDirectoryTool({ live, request, result }: ConnectorDirectoryToolProps) {
+  if (live && request && !request.settled) {
+    return (
+      <ConnectorDirectoryCard
+        onContinue={() => void continueConnectionRequest(request)}
+        suggested={request.display?.suggested}
+      />
+    )
+  }
+
+  return result === undefined ? null : <ConnectorDirectoryReceipt result={result} />
+}
+
+function receiptText(copy: ConnectorCopy['directory'], outcome: ReturnType<typeof recordOf>, added: string[]): string {
+  if (outcome.timed_out === true) {
+    return copy.receiptTimedOut
+  }
+
+  if (connectorText(outcome.said) !== undefined) {
+    return copy.receiptSaid
+  }
+
+  return added.length > 0 ? copy.receiptConnected(added.map(connectorTitle).join(', ')) : copy.receiptNone
+}
+
+export function ConnectorDirectoryReceipt({ result }: { result: unknown }) {
+  const { t } = useI18n()
+  const copy = t.connectors.directory
+  const outcome = recordOf(result)
+
+  const added = Array.isArray(outcome.newly_connected)
+    ? outcome.newly_connected.flatMap(name => connectorText(name) ?? [])
+    : []
+
+  const text = receiptText(copy, outcome, added)
+
+  return (
+    <div data-conversation-scaffold="" data-slot="connector-directory-receipt">
+      <ScaffoldRow>
+        {added.map(name => (
+          <ConnectorLogo
+            className="size-4 rounded-[0.25rem]"
+            connector={{ iconUrl: connectorIconUrl(name), name, title: connectorTitle(name) }}
+            key={name}
+          />
+        ))}
+        <span className={SCAFFOLD_LABEL_CLASS}>{text}</span>
+      </ScaffoldRow>
+    </div>
+  )
 }
 
 type ConnectorCopy = ReturnType<typeof useI18n>['t']['connectors']

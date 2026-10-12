@@ -6,6 +6,8 @@ import { ErrorBanner } from '@/components/ui/error-state'
 import { SearchField } from '@/components/ui/search-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useI18n } from '@/i18n'
+import type { Translations } from '@/i18n/types'
+import { cn } from '@/lib/utils'
 
 import { ConnectorRowCard } from './connector-row-card'
 import { cardKey, EMPTY_CONNECTORS_FILTER } from './derive'
@@ -186,36 +188,90 @@ function Group({
   const copy = t.connectorsPage.group
 
   return (
+    <ConnectorSection count={group.cards.length} note={groupNote(group, copy)} title={group.id === 'local' ? where : copy[group.id]}>
+      <ConnectorGrid
+        busyKey={busyKey}
+        cards={group.cards}
+        onOpen={onOpen}
+        onPrefetch={onPrefetch}
+        onServerToggle={onServerToggle}
+        onVerb={onVerb}
+        selectedKey={selectedKey}
+      />
+    </ConnectorSection>
+  )
+}
+
+function groupNote(group: ConnectorGroupModel, copy: Translations['connectorsPage']['group']): ReactNode {
+  if (group.id === 'connected' && showsAttentionFirst(group)) {
+    return <Note>{copy.connectedNote}</Note>
+  }
+
+  return group.id === 'off' ? <Note>{copy.offNote}</Note> : null
+}
+
+export interface ConnectorSectionProps {
+  children: ReactNode
+  count: number
+  note?: ReactNode
+  title: string
+}
+
+/** One titled group of connector rows, as the Connectors page draws it. */
+export function ConnectorSection({ children, count, note, title }: ConnectorSectionProps) {
+  return (
     <section className="grid gap-2">
       <header className="flex items-center gap-2">
-        <h3 className="text-xs font-semibold text-(--ui-text-primary)">
-          {group.id === 'local' ? where : copy[group.id]}
-        </h3>
-        <span className="tabular-nums text-xs text-(--ui-text-tertiary)">{group.cards.length}</span>
-
-        {group.id === 'connected' && showsAttentionFirst(group) ? <Note>{copy.connectedNote}</Note> : null}
-        {group.id === 'off' ? <Note>{copy.offNote}</Note> : null}
+        <h3 className="text-xs font-semibold text-(--ui-text-primary)">{title}</h3>
+        <span className="tabular-nums text-xs text-(--ui-text-tertiary)">{count}</span>
+        {note}
       </header>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        {group.cards.map(card => {
-          const key = cardKey(card)
-
-          return (
-            <ConnectorRowCard
-              busy={busyKey === key}
-              card={card}
-              key={key}
-              onOpen={() => onOpen(card)}
-              onPrefetch={onPrefetch ? () => onPrefetch(card) : undefined}
-              onServerToggle={onServerToggle ? next => onServerToggle(card, next) : undefined}
-              onVerb={onVerb ? () => onVerb(card) : undefined}
-              selected={selectedKey === key}
-            />
-          )
-        })}
-      </div>
+      {children}
     </section>
+  )
+}
+
+export interface ConnectorGridProps {
+  busyKey: null | string
+  cards: readonly ConnectorCardModel[]
+  /** Two columns from the `sm` breakpoint on the page; one in a narrow chat card. */
+  columns?: 1 | 2
+  onOpen: (card: ConnectorCardModel) => void
+  onPrefetch?: (card: ConnectorCardModel) => void
+  onServerToggle?: (card: ConnectorCardModel, next: boolean) => void
+  onVerb?: (card: ConnectorCardModel) => void
+  selectedKey?: null | string
+}
+
+export function ConnectorGrid({
+  busyKey,
+  cards,
+  columns = 2,
+  onOpen,
+  onPrefetch,
+  onServerToggle,
+  onVerb,
+  selectedKey = null
+}: ConnectorGridProps) {
+  return (
+    <div className={cn('grid gap-3', columns === 2 && 'sm:grid-cols-2')}>
+      {cards.map(card => {
+        const key = cardKey(card)
+
+        return (
+          <ConnectorRowCard
+            busy={busyKey === key}
+            card={card}
+            key={key}
+            onOpen={() => onOpen(card)}
+            onPrefetch={onPrefetch ? () => onPrefetch(card) : undefined}
+            onServerToggle={onServerToggle ? next => onServerToggle(card, next) : undefined}
+            onVerb={onVerb ? () => onVerb(card) : undefined}
+            selected={selectedKey === key}
+          />
+        )
+      })}
+    </div>
   )
 }
 

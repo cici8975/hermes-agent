@@ -32,5 +32,13 @@ export const esConnectorCard: TranslationOverrides['connectors'] = {
   authorizedToolsUnavailable: 'Autorizado. Herramientas no disponibles.',
   required: 'Obligatorio',
   namedAccount: (app: string, alias: string) => `Hermes llamó ${alias} a esta cuenta de ${app}.`,
-  renameAccount: 'Cambiar nombre'
+  renameAccount: 'Cambiar nombre',
+  directory: {
+    suggested: 'Sugeridas',
+    allApps: 'Todas las apps',
+    receiptConnected: apps => `Conectadas: ${apps}`,
+    receiptNone: 'Ninguna app conectada',
+    receiptSaid: 'Respondido en el chat',
+    receiptTimedOut: 'Cerrado tras 5 minutos'
+  }
 }

@@ -124,6 +124,12 @@ export interface ConnectionRequest {
   /** Local receipt time (Unix seconds), used to reject stale resume cleanup. */
   receivedAt?: number
   sessionId: string | null
+  /** A `manage_connections` display card: no targets, the directory with these slugs pinned. */
+  display?: ConnectorDisplay | null
+}
+
+export interface ConnectorDisplay {
+  suggested: string[]
 }
 
 const keyFor = (sessionId: string | null | undefined): string => sessionId ?? ''
@@ -278,12 +284,15 @@ export function normalizeConnectionRequest(
     .map(parseConnectionTarget)
     .filter((target): target is ConnectionTarget => target !== null)
 
-  if (!payload.op_id || !payload.tool_call_id || !(payload.deadline_at > 0) || targets.length === 0) {
+  const display = payload.display ? { suggested: payload.display.suggested } : null
+
+  if (!payload.op_id || !payload.tool_call_id || !(payload.deadline_at > 0) || (targets.length === 0 && !display)) {
     return null
   }
 
   return {
     deadlineAt: payload.deadline_at,
+    display,
     opId: payload.op_id,
     receivedAt: Date.now() / 1000,
     seq: payload.seq,
@@ -503,6 +512,19 @@ export const skipConnectionTarget = (request: ConnectionRequest, name: string): 
 /** Continue: end the operation now with whatever is unresolved. */
 export const continueConnectionRequest = (request: ConnectionRequest): Promise<boolean> =>
   respondToConnectionRequest(request, { settled_by: 'continue' })
+
+/** The composer's words answer an open display card: the tool returns them as `said`. True when a card took them. */
+export function answerConnectorDirectory(sessionId: string, text: string): boolean {
+  const request = $connectionRequests.get()[keyFor(sessionId)]
+
+  if (!request?.display || request.settled || !text.trim()) {
+    return false
+  }
+
+  void respondToConnectionRequest(request, { said: text.trim(), settled_by: 'continue' }).catch(() => undefined)
+
+  return true
+}
 
 // Typing a message while the card is open ends the operation, otherwise the typed message waits behind
 // the blocked tool until the deadline.
