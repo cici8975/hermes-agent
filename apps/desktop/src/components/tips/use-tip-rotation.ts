@@ -56,7 +56,7 @@ function appIsQuiet(lastTypedAt: number): boolean {
     return false
   }
 
-  // The first-run intro is never a quiet moment.
+  // First-run onboarding is never a quiet moment.
   if ($busy.get() || $awaitingResponse.get() || onboardingSurfaceActive()) {
     return false
   }
