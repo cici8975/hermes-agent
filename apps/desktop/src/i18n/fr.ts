@@ -11,6 +11,7 @@ import { frNotices } from './fr_notices'
 import { frOnboarding } from './fr_onboarding'
 import { frProjects } from './fr_projects'
 import { frSharedMetrics } from './fr_shared_metrics'
+import { frThemePicker } from './fr_theme_picker'
 import { frUpdateChannel } from './fr_update_channel'
 import { introFr } from './intro-fr'
 
@@ -5283,6 +5284,7 @@ export const frOverrides = {
       notDelivered:
         "Cette question n'a pas atteint l'app, elle ne peut donc pas être répondue ici. Appuyez sur Arrêter pour terminer le tour, puis répondez dans le chat."
     },
+    themePicker: frThemePicker,
     setupChoose: {
       kinds: {
         accent: 'Couleur d’accent',

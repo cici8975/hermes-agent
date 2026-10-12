@@ -1,4 +1,5 @@
 import type { TranslationOverrides } from './define-locale'
+import { zhHantThemePicker } from './zh-hant_theme_picker'
 
 export const zhHantAssistant = {
   assistant: {
@@ -175,6 +176,7 @@ export const zhHantAssistant = {
       questionProgress: (answered, total) => `已回答 ${answered}/${total}`,
       notDelivered: '此問題未送達應用程式，無法在此回答。請按停止結束本輪，然後在聊天中回覆。'
     },
+    themePicker: zhHantThemePicker,
     setupChoose: {
       kinds: {
         accent: '強調色',

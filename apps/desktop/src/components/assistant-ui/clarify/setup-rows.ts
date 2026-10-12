@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 
 import { MODE_OPTIONS } from '@/app/settings/constants'
 import { $chatLayoutPicked, assembleChatOnboarding, snapshotChatLayout } from '@/components/onboarding-chat/assembly'
-import { accentsFor, LAYOUTS, NOUS_ACCENT, orderConnectorPicks } from '@/components/onboarding-chat/options'
+import { LAYOUTS, orderConnectorPicks } from '@/components/onboarding-chat/options'
 import type { LayoutNode } from '@/components/pane-shell/tree/model'
 import { registry } from '@/contrib/registry'
 import { useI18n } from '@/i18n'
@@ -14,8 +14,10 @@ import { $onboardingAnswers, setOnboardingAnswers } from '@/store/onboarding-ans
 import { type OnboardingPlugin, useOnboardingPluginList } from '@/store/onboarding-plugins'
 import { useTheme } from '@/themes'
 import { $accentOverride, setAccentOverride } from '@/themes/accent-override'
+import { accentsFor, NOUS_ACCENT } from '@/themes/accents'
 import { normalizeHex } from '@/themes/color'
 import type { ThemeMode } from '@/themes/context'
+import { persistAccent } from '@/themes/persist-accent'
 
 export type SetupRow = SetupChooseOption
 
@@ -69,11 +71,20 @@ const APP_LABELS: Record<SetupChooseKind, (id: string, sources: Pick<RowSources,
 
 interface LiveLook {
   apply: (id: string, setMode: (mode: ThemeMode) => void) => void
+  commit?: (id: string) => void
   snapshot: (mode: ThemeMode, setMode: (mode: ThemeMode) => void) => () => void
 }
 
 export const LIVE_LOOK: Partial<Record<SetupChooseKind, LiveLook>> = {
   accent: {
+    commit: id => {
+      const hex = normalizeHex(id)
+
+      if (hex) {
+        setOnboardingAnswers({ accent: hex === NOUS_ACCENT ? null : hex })
+        persistAccent(hex)
+      }
+    },
     apply: id => {
       const hex = normalizeHex(id)
 

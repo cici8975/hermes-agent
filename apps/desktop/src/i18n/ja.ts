@@ -10,6 +10,7 @@ import { jaOnboarding } from './ja_onboarding'
 import { jaPluginSettings } from './ja_plugins'
 import { jaProjects } from './ja_projects'
 import { jaSharedMetrics } from './ja_shared_metrics'
+import { jaThemePicker } from './ja_theme_picker'
 import { jaUpdateChannel } from './ja_update_channel'
 
 export const jaOverrides = {
@@ -3619,6 +3620,7 @@ export const jaOverrides = {
       notDelivered:
         'この質問はアプリに届かなかったため、ここでは回答できません。停止を押してターンを終了し、チャットで返信してください。'
     },
+    themePicker: jaThemePicker,
     setupChoose: {
       kinds: {
         accent: 'アクセントカラー',

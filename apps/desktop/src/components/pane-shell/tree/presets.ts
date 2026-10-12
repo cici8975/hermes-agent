@@ -27,7 +27,7 @@ export const LAYOUTS_AREA = 'layouts'
  */
 export interface LayoutPresetSpec extends Tiered {
   id: string
-  /** `false` keeps a preset off every picker and out of `apply_layout`; only its owner applies it. */
+  /** `false` keeps a preset off every picker and out of `set_theme`; only its owner applies it. */
   listed?: false
   order: number
   resting?: readonly string[]

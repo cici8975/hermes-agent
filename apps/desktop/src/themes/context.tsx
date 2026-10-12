@@ -32,6 +32,7 @@ import {
 import { $chatFontFamily, resolveChatFontFamily } from './chat-font'
 import { harmonize, readableInk } from './color'
 import { BUILTIN_THEME_LIST, DEFAULT_SKIN_NAME, DEFAULT_TYPOGRAPHY, nousTheme, RETIRED_SKINS } from './presets'
+import { $pendingModeApply } from './request'
 import { retintTheme } from './retint'
 import type { DesktopTheme, DesktopThemeColors, DesktopThemeTypography } from './types'
 import { $userThemes, listAllThemes, resolveTheme } from './user-themes'
@@ -617,6 +618,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       $pendingSkinApply.set(null)
     }
   }, [pendingSkin, setTheme])
+
+  // Same door for light/dark/system (set_theme from the agent).
+  const pendingMode = useStore($pendingModeApply)
+
+  useEffect(() => {
+    if (pendingMode) {
+      setMode(pendingMode)
+      $pendingModeApply.set(null)
+    }
+  }, [pendingMode, setMode])
 
   // The light/dark toggle (Shift+X by default) is owned by the keybind runtime
   // (`appearance.toggleMode`) so it shows up in the hotkey map and is rebindable.

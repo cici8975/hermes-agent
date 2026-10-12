@@ -10,6 +10,7 @@ import { deNotices } from './de_notices'
 import { deOnboarding } from './de_onboarding'
 import { deProjects } from './de_projects'
 import { deSharedMetrics } from './de_shared_metrics'
+import { deThemePicker } from './de_theme_picker'
 import { deUpdateChannel } from './de_update_channel'
 import { defineLocale, type TranslationOverrides } from './define-locale'
 import { introDe } from './intro-de'
@@ -5274,6 +5275,7 @@ export const deOverrides = {
       notDelivered:
         'Diese Frage hat die App nicht erreicht und kann hier nicht beantwortet werden. Klicken Sie auf Stopp, um den Durchgang zu beenden, und antworten Sie dann im Chat.'
     },
+    themePicker: deThemePicker,
     setupChoose: {
       kinds: {
         accent: 'Akzentfarbe',

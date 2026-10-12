@@ -138,10 +138,10 @@ TOOLSETS = {
     # process env var, which is blind to a desktop client on a remote backend.
     "desktop_ui": _ts(
         "Desktop GUI affordances — in-app terminal/browser panes, pane focus, "
-        "reactions (GUI sessions only)",
+        "reactions, appearance (GUI sessions only)",
         ["read_terminal", "close_terminal", "desktop_preview", "drive_preview",
          "annotate_preview", "read_window_below", "focus_pane", "react_to_message",
-         "gui_tour", "show_tip"],
+         "gui_tour", "show_tip", "set_theme"],
     ),
     "setup": _ts("Onboarding-only surface for the setup profile: question and picker cards", ["setup_choose"],
                  platforms=frozenset({"desktop"})),

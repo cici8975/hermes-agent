@@ -283,6 +283,52 @@ server_request("tour", params=TourRequestParams, result=ValueResult,
                doc="Drive a guided tour highlight in the desktop renderer.")
 
 
+class ThemeMode(WireEnum):
+    light = "light"
+    dark = "dark"
+    system = "system"
+
+
+class ThemePicker(WireEnum):
+    accent = "accent"
+    layout = "layout"
+
+
+class ThemeApplyRequestParams(ServerRequestParams):
+    """``tools/set_theme_tool.py`` values; accent is a swatch id, ``theme`` or ``#rrggbb``."""
+
+    accent: str | None = None
+    mode: ThemeMode | None = None
+    layout: str | None = None
+
+
+class ThemePickRequestParams(ServerRequestParams):
+    picker: ThemePicker
+
+
+class ThemeValues(Params):
+    """What the renderer applied. ``accent`` is a swatch id, ``custom:#rrggbb``, or null for the theme's own."""
+
+    accent: str | None = None
+    mode: ThemeMode | None = None
+    layout: str | None = None
+
+
+class ThemePickResult(Result):
+    """``picked`` once the user chose (already applied); ``cancelled`` when the card was dismissed. A response
+    with neither is a cancel."""
+
+    picked: ThemeValues | None = None
+    said: str | None = None
+    cancelled: bool | None = None
+
+
+server_request("theme.apply", params=ThemeApplyRequestParams, result=ValueResult,
+               doc="Apply set_theme values in the window showing the session (JSON text answer).")
+server_request("theme.pick", params=ThemePickRequestParams, result=ThemePickResult,
+               doc="Show an accent or layout picker card in the chat and wait for the pick.")
+
+
 # ── withdrawal ────────────────────────────────────────────────────────────────────────────────
 
 

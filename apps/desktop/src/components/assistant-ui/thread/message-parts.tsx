@@ -15,6 +15,8 @@ import { ConnectorExecution, ConnectorTool } from '@/components/assistant-ui/con
 import { MarkdownText, MarkdownTextContent } from '@/components/assistant-ui/markdown-text'
 import { McpSetupTool } from '@/components/assistant-ui/mcp-setup-tool'
 import { StartChatTool } from '@/components/assistant-ui/start-chat-tool'
+import { setThemeCall } from '@/components/assistant-ui/theme-picker/args'
+import { ThemeTool } from '@/components/assistant-ui/theme-picker/theme-tool'
 import { AgentDeliveryNotice, deliveryTargetFromCommand } from '@/components/assistant-ui/thread/agent-delivery'
 import { TimelineTimestamp } from '@/components/assistant-ui/thread/timeline-timestamp'
 import { DelegateTool } from '@/components/assistant-ui/tool/delegate'
@@ -107,6 +109,19 @@ const StartChatToolPart: FC<TimelineToolCallProps> = props => {
   )
 }
 
+const ThemeToolPart: FC<TimelineToolCallProps> = props => {
+  if (settledWithoutResult(props)) {
+    return <ToolFallback {...props} />
+  }
+
+  return (
+    <>
+      <TimelineTimestamp className="mb-0.5 block" completedAt={props.completedAt} timestamp={props.timestamp} />
+      <ThemeTool {...props} />
+    </>
+  )
+}
+
 const ConnectionsToolPart: FC<TimelineToolCallProps> = props =>
   mcpTargets(props.toolName, props.args).length > 0 ? <McpSetupTool {...props} /> : <ConnectorTool {...props} />
 
@@ -116,6 +131,7 @@ const TOOL_CARDS: Record<CardToolName, FC<TimelineToolCallProps>> = {
   image_generate: ImageGenerateTool,
   manage_catalog: CatalogInstallTool,
   manage_connections: ConnectionsToolPart,
+  set_theme: ThemeToolPart,
   setup_choose: ClarifyToolPart,
   start_chat: StartChatToolPart
 }
@@ -162,6 +178,11 @@ const ChainToolFallback: FC<TimelineToolCallProps> = props => {
     const ToolCard = TOOL_CARDS[props.toolName]
 
     return <ToolCard {...props} />
+  }
+
+  // A reloaded transcript holds the model's own call: set_theme reached through the tool_call bridge.
+  if (setThemeCall(props.toolName, props.args)) {
+    return <ThemeToolPart {...props} />
   }
 
   if (toolLabels(props.args).length > 0) {

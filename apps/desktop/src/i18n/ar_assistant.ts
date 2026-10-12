@@ -1,3 +1,4 @@
+import { arThemePicker } from './ar_theme_picker'
 import type { TranslationOverrides } from './define-locale'
 
 export const arAssistant = {
@@ -120,6 +121,7 @@ export const arAssistant = {
       oneQuestion: 'سؤال واحد',
       questionProgress: (answered, total) => `تمت الإجابة على ${answered} من ${total}`
     },
+    themePicker: arThemePicker,
     setupChoose: {
       kinds: {
         accent: 'لون التمييز',

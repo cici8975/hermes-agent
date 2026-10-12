@@ -27,7 +27,8 @@ from tools.threat_patterns import scan_for_threats
 logger = logging.getLogger(__name__)
 
 # Interactive / user-facing tools never run concurrently: any of these in a batch is a barrier.
-_NEVER_PARALLEL_TOOLS = frozenset({"clarify", "manage_connections", "manage_catalog", "setup_choose", "setup_beat"})
+_NEVER_PARALLEL_TOOLS = frozenset({"clarify", "manage_connections", "manage_catalog", "setup_choose", "setup_beat",
+                                   "set_theme"})
 
 # Read-only tools with no shared mutable session state.
 _PARALLEL_SAFE_TOOLS = frozenset({

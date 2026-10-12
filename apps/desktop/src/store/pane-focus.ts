@@ -52,7 +52,7 @@ export function revealDesktopPane(pane: string): boolean {
 /** Apply a layout preset by id, resolved against the layouts contribution
  *  registry — the SAME list the layout picker renders, so core presets
  *  (default/focus/terminal-deck/quad), plugin presets, and user-saved presets
- *  are all addressable by the backend `apply_layout` tool. Returns false for
+ *  are all addressable by the backend `set_theme` tool. Returns false for
  *  an unknown id. */
 export function applyDesktopLayoutPreset(preset: string): boolean {
   if (!preset) {

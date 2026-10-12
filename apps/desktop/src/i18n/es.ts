@@ -11,6 +11,7 @@ import { esNotices } from './es_notices'
 import { esOnboarding } from './es_onboarding'
 import { esProjects } from './es_projects'
 import { esSharedMetrics } from './es_shared_metrics'
+import { esThemePicker } from './es_theme_picker'
 import { esUpdateChannel } from './es_update_channel'
 import { introEs } from './intro-es'
 
@@ -5269,6 +5270,7 @@ export const esOverrides = {
       notDelivered:
         'Esta pregunta no llegó a la app, así que no se puede responder aquí. Pulsa Detener para terminar el turno y luego responde en el chat.'
     },
+    themePicker: esThemePicker,
     setupChoose: {
       kinds: {
         accent: 'Color de acento',

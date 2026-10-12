@@ -10,6 +10,7 @@ import { zhNotices } from './zh_notices'
 import { zhOnboarding } from './zh_onboarding'
 import { zhProjects } from './zh_projects'
 import { zhSharedMetrics } from './zh_shared_metrics'
+import { zhThemePicker } from './zh_theme_picker'
 import { zhUpdateChannel } from './zh_update_channel'
 
 export const zhOverrides = {
@@ -4562,6 +4563,7 @@ export const zhOverrides = {
       questionProgress: (answered, total) => `已回答 ${answered}/${total}`,
       notDelivered: '此问题未送达应用，无法在此回答。请按停止结束本轮，然后在聊天中回复。'
     },
+    themePicker: zhThemePicker,
     setupChoose: {
       kinds: {
         accent: '强调色',

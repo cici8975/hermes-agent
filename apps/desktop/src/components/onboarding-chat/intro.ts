@@ -109,7 +109,7 @@ export function leaveIntro(): void {
   }
 }
 
-/** A layout pick (the setup card, `apply_layout`, the layout picker) ends the intro and keeps the pick. */
+/** A layout pick (the setup card, `set_theme`, the layout picker) ends the intro and keeps the pick. */
 function leaveIntroOnLayout(): void {
   if (endIntroView(true)) {
     leaveGuide()

@@ -19,6 +19,7 @@ import type { NoticeTranslations } from './types_notices'
 import type { OnboardingTranslations } from './types_onboarding'
 import type { SidebarProjectsTranslations } from './types_projects'
 import type { SharedMetricsTranslations } from './types_shared_metrics'
+import type { ThemePickerCopy } from './types_theme_picker'
 import type { UninstallSectionTranslations } from './types_uninstall_section'
 import type { UpdateChannelCopy } from './types_update_channel'
 
@@ -4121,6 +4122,7 @@ export interface Translations extends NoticeTranslations {
       questionProgress: (answered: number, total: number) => string
       notDelivered: string
     }
+    themePicker: ThemePickerCopy
     setupChoose: {
       kinds: Record<'accent' | 'connectors' | 'layout' | 'plugins' | 'theme', string>
       loading: string

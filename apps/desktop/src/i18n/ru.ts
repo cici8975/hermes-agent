@@ -8,6 +8,7 @@ import { ruOnboarding } from './ru_onboarding'
 import { ruPluginSettings } from './ru_plugins'
 import { ruProjects } from './ru_projects'
 import { ruSharedMetrics } from './ru_shared_metrics'
+import { ruThemePicker } from './ru_theme_picker'
 import { ruUpdateChannel } from './ru_update_channel'
 
 // RU_PLURAL: (count, one, few, many) — русские формы сущ. падежа
@@ -3796,6 +3797,7 @@ export const ruOverrides = {
       notDelivered:
         'Этот вопрос не дошёл до приложения, поэтому ответить здесь нельзя. Нажмите «Стоп», чтобы завершить ход, и ответьте в чате.'
     },
+    themePicker: ruThemePicker,
     setupChoose: {
       kinds: {
         accent: 'Акцентный цвет',

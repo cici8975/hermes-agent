@@ -17,6 +17,7 @@ import { translateNow } from '@/i18n'
 import { restorePendingClarifyToolCall } from '@/lib/chat-messages'
 import type { PreviewActAction } from '@/lib/preview-act/act-in-page'
 import type { TourAction, TourStep } from '@/lib/tour'
+import { type AppearanceValues, applyAppearance, THEME_MODES } from '@/store/appearance-apply'
 import { type ClarifyRequest, normalizeQuestions, normalizeSetupChoose, setClarifyRequest } from '@/store/clarify'
 import type { ScopedServerRequest } from '@/store/gateway'
 import { dispatchNativeNotification } from '@/store/native-notifications'
@@ -37,6 +38,7 @@ import {
   previewScopeForRuntime,
   storedSessionIdForRuntimeId
 } from '@/store/session-states'
+import { parkThemePick } from '@/store/theme-pick'
 import { requestScrollToBottom } from '@/store/thread-scroll'
 import { $toursEnabled } from '@/store/tours'
 
@@ -104,7 +106,7 @@ type PreviewSessionRoute = 'ignore' | 'retry' | 'run'
  * would win the race, so the tool reports "no preview tab / no terminal" while
  * the owner's pane is open (#113348).
  */
-const WINDOW_OWNED_REQUESTS = new Set(['preview.act', 'preview.read', 'terminal.read', 'window.read', 'tour'])
+const WINDOW_OWNED_REQUESTS = new Set(['preview.act', 'preview.read', 'terminal.read', 'theme.apply', 'window.read', 'tour'])
 
 /**
  * A window not hosting the session declines instead of staying silent. The
@@ -695,6 +697,47 @@ const tour: Handler = ({ deps, isActiveSession, request, sessionId }) => {
   )
 }
 
+// ── set_theme ───────────────────────────────────────────────────────────────
+
+const appearanceValues = ({ params }: ScopedServerRequest): AppearanceValues => {
+  const mode = THEME_MODES.find(candidate => candidate === params.mode)
+
+  return {
+    ...(str(params.accent) && { accent: str(params.accent) }),
+    ...(str(params.layout) && { layout: str(params.layout) }),
+    ...(mode && { mode })
+  }
+}
+
+const themeApply: Handler = ({ isActiveSession, request }) => {
+  // Active session only, like the tour: a background turn never repaints the app the user is looking at.
+  answerValue(
+    request,
+    isActiveSession
+      ? applyAppearance(appearanceValues(request))
+      : { error: 'set_theme only changes the app while the user is looking at this chat.', success: false }
+  )
+}
+
+const themePick: Handler = ctx => {
+  const picker = ctx.request.params.picker
+
+  if (!ctx.sessionId || (picker !== 'accent' && picker !== 'layout')) {
+    ctx.request.respond({ cancelled: true })
+
+    return
+  }
+
+  if (declineIfSessionStopped(ctx)) {
+    return
+  }
+
+  rememberServerRequest(ctx.request)
+  parkThemePick({ picker, requestId: ctx.request.id, sessionId: ctx.sessionId })
+  markNeedsInput(ctx)
+  notifyInput(ctx, translateNow(`assistant.themePicker.${picker}`))
+}
+
 /** Method → handler. Every `ServerRequestMap` key the desktop answers. */
 export const SERVER_REQUEST_HANDLERS: Record<string, Handler> = {
   approval,
@@ -706,6 +749,8 @@ export const SERVER_REQUEST_HANDLERS: Record<string, Handler> = {
   setup_choose: setupChoose,
   sudo,
   'terminal.read': terminalRead,
+  'theme.apply': themeApply,
+  'theme.pick': themePick,
   tour,
   'vault.code': vaultCode,
   'vault.save_login': vaultSaveLogin,

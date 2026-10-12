@@ -286,6 +286,10 @@ _RAW_INLINE_TOOL_EXECUTORS: dict[str, InlineToolExecutor] = {
         ("text", "text"), ("side", "side"), ("steps", "steps"), ("step_index", "step_index"),
         ("preset", "preset"),
     ),
+    "set_theme": _callback_tool(
+        "tools.set_theme_tool", "set_theme_tool", "theme_callback",
+        ("accent", "accent"), ("mode", "mode"), ("layout", "layout"), ("picker", "picker"),
+    ),
     # The session id keys the card facts its /initiate-setup turn recorded.
     "setup_choose": _tool(
         "tools.setup_choose_tool", "setup_choose_tool",
