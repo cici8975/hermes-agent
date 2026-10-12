@@ -1,8 +1,14 @@
 import type { SetupChooseKind, SetupChooseOption } from '@hermes/shared'
 import { atom, computed } from 'nanostores'
 
-import { hasOpenServerRequest, respondToServerRequest } from './server-requests'
+import { translateNow } from '@/i18n'
+
+import { $gateway } from './gateway'
+import { notifyError } from './notifications'
+import { registerParkedCardAnswer } from './parked-card-answers'
+import { forgetServerRequest, hasOpenServerRequest, respondToServerRequest } from './server-requests'
 import { $activeSessionId } from './session'
+import { requestForOwnedSession } from './session-states'
 
 export interface ClarifyQuestion {
   qid: string
@@ -396,6 +402,109 @@ export function answerSetupCard(sessionId: string | null | undefined, text: stri
   const request = $clarifyRequests.get()[keyFor(sessionId)]
 
   return request?.setup ? answerSetupChoose(request, request.setup, text) : false
+}
+
+/**
+ * Answer the card parked on `sessionId` with composer text. A setup card reads the words as its
+ * pick; a clarify card takes them as the answer to its first question not yet locked.
+ */
+function answerClarifyText(sessionId: string, text: string): boolean {
+  const request = $clarifyRequests.get()[keyFor(sessionId)]
+
+  if (!request) {
+    return false
+  }
+
+  return request.setup ? answerSetupCard(sessionId, text) : lockTypedAnswer(request, text)
+}
+
+registerParkedCardAnswer('clarify', answerClarifyText)
+
+/** The choice typed text names (any case, as the messaging path matches labels), else the words themselves. */
+function typedAnswer(question: ClarifyQuestion, text: string): string {
+  const typed = text.toLowerCase()
+  const answer = question.choices?.map(bareChoice).find(choice => choice.toLowerCase() === typed) ?? text
+
+  return question.multiSelect ? JSON.stringify([answer]) : answer
+}
+
+function lockTypedAnswer(request: ClarifyRequest, text: string): boolean {
+  const gateway = $gateway.get()
+  const question = request.questions.find(entry => request.lockedAnswers?.[entry.qid] === undefined)
+
+  if (!gateway || !question) {
+    return false
+  }
+
+  const answer = typedAnswer(question, text)
+  const lockedAnswers = { ...request.lockedAnswers, [question.qid]: answer }
+  const last = request.questions.every(entry => lockedAnswers[entry.qid] !== undefined)
+
+  // The store changes before the RPC returns, so a second Enter locks the next question, not this one again.
+  if (last) {
+    clearClarifyRequest(request.requestId, request.sessionId)
+    settleClarify(request, {
+      outcome: 'submitted',
+      responses: request.questions.map(entry => {
+        const locked = lockedAnswers[entry.qid]
+
+        return locked
+          ? { question: entry.question, status: 'answered', user_response: lockedAnswer(entry, locked) }
+          : { question: entry.question, status: 'skipped', user_response: null }
+      })
+    })
+  } else {
+    setClarifyRequest({ ...request, lockedAnswers })
+  }
+
+  void requestForOwnedSession<{ status?: string }>(
+    request.sessionId,
+    <R>(...args: Parameters<typeof gateway.request>) => gateway.request<R>(...args),
+    'clarify.lock',
+    { answer, question_id: question.qid, request_id: request.requestId }
+  )
+    .then(reply => {
+      if (reply.status === 'expired') {
+        // The wait already ended; the tool's own result says how.
+        forgetSettledClarify(request.requestId)
+      } else if (last) {
+        // The last lock resolved the batch server-side, so no response frame is owed.
+        forgetServerRequest(request.requestId)
+      }
+    })
+    .catch(error => {
+      forgetSettledClarify(request.requestId)
+      rollBackTypedAnswer(request, lockedAnswers, question.qid, answer)
+      notifyError(error, translateNow('assistant.clarify.sendFailed'))
+    })
+
+  return true
+}
+
+/** Undo one failed lock without touching answers locked after it. */
+function rollBackTypedAnswer(
+  request: ClarifyRequest,
+  lockedAnswers: Record<string, null | string>,
+  qid: string,
+  answer: string
+): void {
+  const current = $clarifyRequests.get()[keyFor(request.sessionId)]
+
+  // The last answer cleared the card: bring it back while the server still waits.
+  const live =
+    current?.requestId === request.requestId
+      ? current
+      : !current && hasOpenServerRequest(request.requestId)
+        ? { ...request, lockedAnswers }
+        : null
+
+  if (live?.lockedAnswers?.[qid] !== answer) {
+    return
+  }
+
+  const kept = { ...live.lockedAnswers }
+  delete kept[qid]
+  setClarifyRequest({ ...live, lockedAnswers: kept })
 }
 
 /** The row typed text names, by id or label (any case). */
