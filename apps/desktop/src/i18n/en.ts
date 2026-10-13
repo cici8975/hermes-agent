@@ -7,6 +7,7 @@ import { enBoot } from './en_boot'
 import { enCatalogInstall } from './en_catalog_install'
 import { enConnectorAccounts } from './en_connector_accounts'
 import { enConnectorCard } from './en_connector_card'
+import { enFirstRun } from './en_first_run'
 import { enLocalModels } from './en_local_models'
 import { enModelMenu } from './en_model_menu'
 import { enNotices } from './en_notices'
@@ -31,6 +32,7 @@ export const en: Translations = {
   },
   sharedMetrics: enSharedMetrics,
   appTour: enAppTour,
+  firstRun: enFirstRun,
   // English editorial copy stays in the shipped JSONL; other locales override it.
   intro: { stock: {}, custom: () => [] },
   connectors: enConnectorCard,
