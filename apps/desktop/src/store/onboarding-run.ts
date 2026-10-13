@@ -43,11 +43,22 @@ export const $onboardingSettleFrom = atom<null | number>(null)
 // The backend runs onboarding in its root profile whichever profile the app was on.
 const ONBOARDING_PROFILE = 'default'
 
-/** A run is starting (no chat yet), or its chat is the one on screen. */
+/** The run's chat has been on screen at least once; until then a route still opening is not a leave. */
+const $onboardingChatSeen = atom(false)
+
+/** A run is starting (its chat not on screen yet), or its chat is the one on screen. */
 const $onboardingOnScreen = computed(
-  [$onboardingPhase, $onboardingSession, $selectedStoredSessionId],
-  (phase, session, selected) => phase === 'shown' && (!session || session.storedId === selected)
+  [$onboardingPhase, $onboardingSession, $selectedStoredSessionId, $onboardingChatSeen],
+  (phase, session, selected, seen) => phase === 'shown' && (!session || !seen || session.storedId === selected)
 )
+
+computed([$onboardingSession, $selectedStoredSessionId], (session, selected) =>
+  Boolean(session && session.storedId === selected)
+).subscribe(onChat => {
+  if (onChat) {
+    $onboardingChatSeen.set(true)
+  }
+})
 
 $onboardingOnScreen.subscribe(onScreen => {
   setOnboardingSurfaceActive('onboarding', onScreen)
@@ -93,6 +104,7 @@ export async function startOnboarding(
 ): Promise<boolean> {
   $onboardingPhase.set('shown')
   $onboardingEnded.set(null)
+  $onboardingChatSeen.set(false)
 
   try {
     await ensureProfile(ONBOARDING_PROFILE)
