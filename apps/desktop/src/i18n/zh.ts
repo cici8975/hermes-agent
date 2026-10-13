@@ -4,6 +4,7 @@ import { defineLocale, type TranslationOverrides } from './define-locale'
 import { introZh } from './intro-zh'
 import { zhAuxTasks } from './zh_aux_tasks'
 import { zhConnectorCard } from './zh_connector_card'
+import { zhFirstRun } from './zh_first_run'
 import { zhLocalModels } from './zh_local_models'
 import { zhModelMenu } from './zh_model_menu'
 import { zhNotices } from './zh_notices'
@@ -21,6 +22,7 @@ export const zhOverrides = {
     close: '关闭'
   },
   sharedMetrics: zhSharedMetrics,
+  firstRun: zhFirstRun,
   intro: introZh,
   connectors: zhConnectorCard,
   sessionImport: {

@@ -5,6 +5,7 @@ import { frAuxTasks } from './fr_aux_tasks'
 import { frBoot } from './fr_boot'
 import { frConnectorAccounts } from './fr_connector_accounts'
 import { frConnectorCard } from './fr_connector_card'
+import { frFirstRun } from './fr_first_run'
 import { frLocalModels } from './fr_local_models'
 import { frModelMenu } from './fr_model_menu'
 import { frNotices } from './fr_notices'
@@ -17,6 +18,7 @@ import { introFr } from './intro-fr'
 
 export const frOverrides = {
   sharedMetrics: frSharedMetrics,
+  firstRun: frFirstRun,
   intro: introFr,
   connectors: frConnectorCard,
   connectorsPage: {

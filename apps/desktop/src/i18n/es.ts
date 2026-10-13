@@ -5,6 +5,7 @@ import { esAuxTasks } from './es_aux_tasks'
 import { esBoot } from './es_boot'
 import { esConnectorAccounts } from './es_connector_accounts'
 import { esConnectorCard } from './es_connector_card'
+import { esFirstRun } from './es_first_run'
 import { esLocalModels } from './es_local_models'
 import { esModelMenu } from './es_model_menu'
 import { esNotices } from './es_notices'
@@ -17,6 +18,7 @@ import { introEs } from './intro-es'
 
 export const esOverrides = {
   sharedMetrics: esSharedMetrics,
+  firstRun: esFirstRun,
   intro: introEs,
   connectors: esConnectorCard,
   connectorsPage: {

@@ -4,6 +4,7 @@ import { deAuxTasks } from './de_aux_tasks'
 import { deBoot } from './de_boot'
 import { deConnectorAccounts } from './de_connector_accounts'
 import { deConnectorCard } from './de_connector_card'
+import { deFirstRun } from './de_first_run'
 import { deLocalModels } from './de_local_models'
 import { deModelMenu } from './de_model_menu'
 import { deNotices } from './de_notices'
@@ -17,6 +18,7 @@ import { introDe } from './intro-de'
 
 export const deOverrides = {
   sharedMetrics: deSharedMetrics,
+  firstRun: deFirstRun,
   intro: introDe,
   connectors: deConnectorCard,
   connectorsPage: {
