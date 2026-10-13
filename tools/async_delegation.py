@@ -182,8 +182,17 @@ def _prune_durable_records() -> None:
     """Bound terminal history, preferring delivered records for deletion."""
     cutoff = time.time() - _DURABLE_RETENTION_SECONDS
     with _DB_LOCK, _transaction() as conn:
+        # Any terminal row past retention is prunable regardless of how
+        # delivery ended. Gating this on 'delivered' leaked every other
+        # outcome forever: 'dropped' rows (replay cap in
+        # restore_undelivered_completions) and 'pending' rows orphaned by a
+        # dead owner never reach 'delivered', so they could only be reclaimed
+        # by the _MAX_RETAINED_COMPLETED overflow rule below — which trims one
+        # row per dispatch. A fleet that stopped delegating kept 51 rows from
+        # a single storm alive for a month.
         conn.execute(
-            "DELETE FROM async_delegations WHERE delivery_state='delivered' AND updated_at < ?", (cutoff,))
+            """DELETE FROM async_delegations
+               WHERE state NOT IN ('running','finalizing') AND updated_at < ?""", (cutoff,))
         terminal_count = conn.execute(
             "SELECT COUNT(*) FROM async_delegations WHERE state NOT IN ('running','finalizing')").fetchone()[0]
         if terminal_count > _MAX_RETAINED_COMPLETED:
@@ -330,7 +339,14 @@ def restore_undelivered_completions(target_queue) -> int:
                FROM async_delegations
                WHERE state != 'running' AND delivery_state='pending' AND event_json IS NOT NULL
                ORDER BY completed_at, delegation_id""").fetchall()
-        return _replay_pending(conn, rows, target_queue, now)
+        restored = _replay_pending(conn, rows, target_queue, now)
+    # Startup is the only prune trigger that does not require the fleet to
+    # keep delegating: _persist_dispatch is otherwise the sole caller, so an
+    # agent that stops dispatching never reclaims its terminal rows. Runs
+    # AFTER the replay above and OUTSIDE _DB_LOCK: _prune_durable_records
+    # takes that non-reentrant lock itself.
+    _prune_durable_records()
+    return restored
 
 
 def _replay_pending(conn, rows, target_queue, now: float) -> int:

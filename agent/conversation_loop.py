@@ -30,6 +30,7 @@ from agent.prompt_caching import (
     strip_anthropic_tool_cache_control,
 )
 from agent.repetition_guard import REPETITION_LOOP_INTERRUPTED, is_runaway_repetition
+from agent.runaway_mitigation import note_runaway
 from agent.runtime_cwd import resolve_agent_cwd
 from agent.surface_switch import (
     identity_line_value, note_inert_pinned_tools, runtime_host_value, stage_surface_switch_note,
@@ -334,6 +335,11 @@ def _apply_active_turn_redirect(agent: Any, messages: list[dict[str, Any]], text
         # the hidden shape).
         checkpoint_parts.append(REPETITION_LOOP_INTERRUPTED)
         visible = ""
+        # ②/④ runaway mitigation (agent.runaway_mitigation): arm the session downgrade; the
+        # redirect path has no user-facing copy of its own, so a ④ alert uses the status channel.
+        _runaway_mitigation = note_runaway(agent, site="redirect")
+        if _runaway_mitigation.alert:
+            agent._emit_diagnostic_status(_runaway_mitigation.alert)
     elif visible:
         checkpoint_parts += ["Visible response before the interruption:", visible]
     checkpoint = "\n\n".join(checkpoint_parts)

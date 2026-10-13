@@ -193,7 +193,8 @@ class TurnRunner:
                 )
                 render_notification(
                     lambda: self._schedule(self._runner._deliver_platform_notice(ctx.source, line), "subagent failure notice scheduling error"),
-                    platform=ctx.source.platform, user_config=ctx.user_config)
+                    platform=ctx.source.platform, user_config=ctx.user_config,
+                    chat_type=getattr(ctx.source, "chat_type", None))
         except Exception:
             logger.debug("subagent failure notice failed", exc_info=True)
 
@@ -910,7 +911,8 @@ class TurnRunner:
             if fut is not None and ctx._cleanup_progress:
                 fut.add_done_callback(self._track_future_cleanup_id)
         render_notification(present, platform=ctx.source.platform, user_config=ctx.user_config,
-                            diagnostic=is_warning_status(event_type, message))
+                            diagnostic=is_warning_status(event_type, message),
+                            chat_type=getattr(ctx.source, "chat_type", None))
 
     # ── stream consumer / interim commentary wiring ─────────────────────────────────────────
 
@@ -1194,7 +1196,8 @@ class TurnRunner:
             if line:
                 self._schedule(self._runner._deliver_platform_notice(self._ctx.source, line), "notice_callback delivery scheduling error")
         render_notification(present, platform=self._ctx.source.platform,
-                            user_config=self._ctx.user_config, diagnostic=diagnostic)
+                            user_config=self._ctx.user_config, diagnostic=diagnostic,
+                            chat_type=getattr(self._ctx.source, "chat_type", None))
 
     def _make_bg_review_callbacks(self):
         """(send, release): background-review messages ("💾 Memory updated") are held until the

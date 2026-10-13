@@ -62,40 +62,55 @@ def diagnostic_wake_muted(event, user_config=None) -> bool:
         getattr(event, "metadata", None), event.source.platform, user_config)
 
 
-def render_notification(render, *, platform, diagnostic=True, user_config=None) -> bool:
+def render_notification(render, *, platform, diagnostic=True, user_config=None, chat_type=None) -> bool:
     """Invoke a synchronous UI renderer only when its classified content is visible.
 
     Return whether the renderer ran, not whether a transport delivered anything.
     Call only at a presentation sink, never around producer callbacks or persistence.
     The caller supplies the owning scope/turn snapshot; exceptions remain its policy.
+    ``chat_type`` narrows the decision to the target chat's scope (group vs dm).
     """
-    if diagnostic and not warning_notifications_enabled(platform, user_config):
+    if diagnostic and not warning_notifications_enabled(platform, user_config, chat_type=chat_type):
         return False
     render()
     return True
 
 
-async def present_notification(present, *, platform, diagnostic=True, user_config=None) -> bool:
+async def present_notification(present, *, platform, diagnostic=True, user_config=None, chat_type=None) -> bool:
     """Async twin of :func:`render_notification` for lifecycle emitters that await a send.
 
     Return whether the presenter ran; its own receipt/exception is the caller's to interpret.
     The caller binds the owning profile scope BEFORE calling (watchers/shutdown fan-outs).
+    ``chat_type`` narrows the decision to the target chat's scope (group vs dm).
     """
-    if diagnostic and not warning_notifications_enabled(platform, user_config):
+    if diagnostic and not warning_notifications_enabled(platform, user_config, chat_type=chat_type):
         return False
     await present()
     return True
 
 
-def warning_notifications_enabled(platform, user_config=None) -> bool:
+# Chat scopes that count as "a group" for group-scoped suppression. Mirrors
+# authz_mixin._GROUP_CHAT_TYPES (kept local to avoid an import cycle).
+_GROUP_CHAT_TYPES = frozenset({"group", "forum", "channel"})
+
+
+def warning_notifications_enabled(platform, user_config=None, *, chat_type=None) -> bool:
     """Use the turn snapshot when supplied, otherwise the active profile's effective config.
 
     No surface exemption: direct command/API outcomes are not notifications.
     Unknown values never opt in; null inherits via the canonical display resolver.
+    ``chat_type`` (when known) additionally honours
+    ``suppress_warning_notifications_in_groups`` so a group/forum/channel chat can be
+    quieted while DMs and the dashboard keep their diagnostics.
     """
     if user_config is None:
         user_config = effective_user_config()
     elif not isinstance(user_config, dict):
         user_config = {}
     platform_key = getattr(platform, "value", platform)
-    return not resolve_display_setting(user_config, platform_key, "suppress_warning_notifications", False)
+    if resolve_display_setting(user_config, platform_key, "suppress_warning_notifications", False):
+        return False
+    if chat_type is not None and str(chat_type).strip().lower() in _GROUP_CHAT_TYPES:
+        if resolve_display_setting(user_config, platform_key, "suppress_warning_notifications_in_groups", False):
+            return False
+    return True

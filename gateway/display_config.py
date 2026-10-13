@@ -23,6 +23,9 @@ _GLOBAL_DEFAULTS: dict[str, Any] = {
     # Gateway-only assistant/status chatter; mobile platforms opt down to final-answer-first.
     "interim_assistant_messages": True,
     "suppress_warning_notifications": False,
+    # Group-scope refinement of the above: mute automatic diagnostics in group/forum/channel
+    # chats only, keeping DMs and the dashboard untouched. Opt-in, default off.
+    "suppress_warning_notifications_in_groups": False,
     "long_running_notifications": True,
     "busy_ack_detail": True,
     "busy_steer_ack_enabled": True,  # busy_input_mode=steer echo; the text still lands in the run
@@ -204,6 +207,7 @@ _NORMALISERS: dict[str, Any] = {
     "streaming": _norm_bool,
     "interim_assistant_messages": _norm_bool,
     "suppress_warning_notifications": _norm_suppress_warning_notifications,
+    "suppress_warning_notifications_in_groups": _norm_bool,
     "long_running_notifications": _norm_long_running,
     "busy_ack_detail": _norm_bool,
     "busy_steer_ack_enabled": _norm_bool,

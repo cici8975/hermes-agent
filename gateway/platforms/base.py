@@ -3146,9 +3146,14 @@ class BasePlatformAdapter(ABC):
         return hidden
 
     def warning_notifications_enabled(self, logical_platform=None, *, chat_id=None, metadata=None) -> bool:
-        """Presentation policy under the caller's owning profile; old plugins inherit it."""
+        """Presentation policy under the caller's owning profile; old plugins inherit it.
+
+        When the caller's metadata carries the target ``chat_type``, group-scoped
+        suppression (``suppress_warning_notifications_in_groups``) applies here too.
+        """
         from gateway.warning_notifications import warning_notifications_enabled
-        return warning_notifications_enabled(logical_platform or self.platform)
+        chat_type = metadata.get("chat_type") if isinstance(metadata, dict) else None
+        return warning_notifications_enabled(logical_platform or self.platform, chat_type=chat_type)
 
     def prepare_tts_text(self, text: str) -> str:
         """Chat Markdown -> transcript-like spoken script (reasoning blocks removed,

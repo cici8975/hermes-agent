@@ -469,6 +469,11 @@ def recover_from_truncation(
         # The streaming call cut a live repetition loop: a continuation would only re-enter it,
         # whatever the partial or its tool calls look like.
         line, user_response, error = _REPETITION_STREAM_CUT
+        # ④ rides the response (see chat_completion_helpers) so this path matches the stop path,
+        # which splices the same alert into its user-visible copy.
+        _alert = str(getattr(response, "_runaway_alert", "") or "")
+        if _alert:
+            user_response = f"{user_response}\n\n{_alert}"
         agent._vprint(f"{agent.log_prefix}{line}", force=True, diagnostic=True)
         return st.end_turn(user_response, error)
     st.window_filled = _prompt_filled_window(agent, response)

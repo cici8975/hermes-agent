@@ -237,7 +237,8 @@ class GatewayConfigLoadersMixin:
     def _load_busy_input_mode(cls) -> str:
         """Gateway drain-time busy-input behavior from env/config (default ``interrupt``)."""
         mode = cls._env_or_cfg_str("HERMES_GATEWAY_BUSY_INPUT_MODE", "display", "busy_input_mode").lower()
-        return mode if mode in {"queue", "steer"} else "interrupt"
+        # local patch 0002: unset/unknown -> queue; explicit interrupt/queue/steer honored
+        return mode if mode in {"interrupt", "queue", "steer"} else "queue"
 
     @classmethod
     def _load_busy_text_mode(cls) -> str:

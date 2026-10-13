@@ -72,7 +72,7 @@ _LARK_SDK_IMPORTS = (
     ("lark_oapi.core", ("AccessTokenType", "HttpMethod")),
     ("lark_oapi.core.const", ("FEISHU_DOMAIN", "LARK_DOMAIN")),
     ("lark_oapi.core.model", ("BaseRequest",)),
-    ("lark_oapi.event.callback.model.p2_card_action_trigger", ("CallBackCard", "P2CardActionTriggerResponse")),
+    ("lark_oapi.event.callback.model.p2_card_action_trigger", ("CallBackCard", "CallBackToast", "P2CardActionTriggerResponse")),
     ("lark_oapi.event.dispatcher_handler", ("EventDispatcherHandler",)),
 )
 lark = FeishuWSClient = None  # type: ignore[assignment]
@@ -436,6 +436,145 @@ def _coerce_int(value: Any, default: Optional[int] = None, min_value: int = 0) -
 def _coerce_required_int(value: Any, default: int, min_value: int = 0) -> int:
     parsed = _coerce_int(value, default=default, min_value=min_value)
     return default if parsed is None else parsed
+
+
+# --- LOCAL PATCH (stone 2026-09-23): 出站卡片渲染 ---------------------------------
+# 目的：石头在飞书的回复外观与 水水/小强 一致（卡片，而不是大字富文本/纯文本）。
+# 开关：$HERMES_HOME/.feishu_card_reply（存在=开）；环境变量 FEISHU_CARD_REPLY=0/1 可覆盖。
+# 结构：Card JSON 1.0（config + header + elements[markdown]）—— 与水水现有卡片同款；
+#       2.0 在本租户会被降级为「请升级至最新版本客户端」占位，故不用。
+_CARD_MIN_CHARS_LOCAL = 80
+
+
+def _local_card_reply_enabled() -> bool:
+    """卡片开关；读文件是热生效的（不需要重启网关就能开关）。"""
+    import os
+    from pathlib import Path
+    env = (os.getenv("FEISHU_CARD_REPLY", "") or "").strip().lower()
+    if env in {"0", "false", "no", "off"}:
+        return False
+    if env in {"1", "true", "yes", "on"}:
+        return True
+    try:
+        from hermes_constants import get_hermes_home
+        home = Path(get_hermes_home())
+    except Exception:
+        home = Path(os.getenv("HERMES_HOME", str(Path.home() / ".hermes")))
+    try:
+        return (home / ".feishu_card_reply").exists()
+    except Exception:
+        return False
+
+
+def _card_stream_enabled() -> bool:
+    """流式打字机配套开关：$HERMES_HOME/.feishu_card_stream（存在=开）。
+
+    流式期间每帧都要保持同一种 msg_type：若首帧按短内容走 post/text、后续帧又按长内容转卡，
+    PATCH 会在 post↔interactive 之间切换而被飞书接口拒绝。开启后不分长短一律走卡片。
+    """
+    import os
+    from pathlib import Path
+    env = (os.getenv("FEISHU_CARD_STREAM", "") or "").strip().lower()
+    if env in {"0", "false", "no", "off"}:
+        return False
+    if env in {"1", "true", "yes", "on"}:
+        return True
+    try:
+        from hermes_constants import get_hermes_home
+        home = Path(get_hermes_home())
+    except Exception:
+        home = Path(os.getenv("HERMES_HOME", str(Path.home() / ".hermes")))
+    try:
+        return (home / ".feishu_card_stream").exists()
+    except Exception:
+        return False
+
+
+# ── 重复最终投递闸（2026-09-23 老大反馈「两条一模一样的卡片」）──────────────
+# 根因（日志实证 14:03:08 vs 14:03:13）：带附件的回复 + 流式编辑时，流式收尾已把整段内容发出，
+#   但网关的完成度对账（delivered_final_matches）因 MEDIA 指令行被适配器剥掉而对不上
+#   （日志 `streamed=False previewed=False content_delivered=False`），于是再走一次正常最终发送
+#   → 同一内容两张卡。13:49／13:54 两轮无附件，对账通过（streamed=True），被正确抑制。
+# 处置：同 chat + 渲染后内容完全一致 + 时间窗内 + 上一条已成功 → 抑制第二次 send()，
+#   返回上一条 message_id（上游记账不受影响）。附件走 send_file，不受本闸影响。
+# 关闭：创建 $HERMES_HOME/.feishu_send_dedupe_off（热生效，无需重启）。
+_SEND_DEDUPE_WINDOW_S = 30.0
+_RECENT_SENDS: Dict[str, tuple] = {}
+
+
+def _send_dedupe_disabled() -> bool:
+    import os
+    from pathlib import Path
+    env = (os.getenv("FEISHU_SEND_DEDUPE", "") or "").strip().lower()
+    if env in {"0", "false", "no", "off"}:
+        return True
+    if env in {"1", "true", "yes", "on"}:
+        return False
+    try:
+        from hermes_constants import get_hermes_home
+        home = Path(get_hermes_home())
+    except Exception:
+        home = Path(os.getenv("HERMES_HOME", str(Path.home() / ".hermes")))
+    try:
+        return (home / ".feishu_send_dedupe_off").exists()
+    except Exception:
+        return False
+
+
+def _send_dedupe_lookup(chat_id: str, formatted: str) -> Optional[str]:
+    """命中则返回上一条 message_id（= 这次不该重发）。"""
+    import hashlib
+    import time
+    key = hashlib.sha1(f"{chat_id}\x00{formatted}".encode("utf-8", "replace")).hexdigest()
+    prev = _RECENT_SENDS.get(key)
+    if not prev:
+        return None
+    ts, message_id = prev
+    if time.monotonic() - ts > _SEND_DEDUPE_WINDOW_S:
+        return None
+    return message_id or "dedupe"
+
+
+def _send_dedupe_record(chat_id: str, formatted: str, message_id: Optional[str]) -> None:
+    import hashlib
+    import time
+    key = hashlib.sha1(f"{chat_id}\x00{formatted}".encode("utf-8", "replace")).hexdigest()
+    _RECENT_SENDS[key] = (time.monotonic(), message_id)
+
+
+def _local_card_payload(content: str, *, force: bool = False) -> Optional[str]:
+    """回复 → 卡片 JSON(2.0)。整条是卡片 JSON 时原样透传；含 Markdown 结构的较长回复转卡。
+
+    ``force=True``（流式打字机模式）时不看长度/结构门槛，一律转卡。
+    """
+    text = (content or "").strip()
+    if not text:
+        return None
+    if text.startswith("{") and text.endswith("}"):
+        try:
+            obj = json.loads(text)
+        except Exception:
+            obj = None
+        if isinstance(obj, dict) and isinstance(obj.get("elements"), list) and (
+            "config" in obj or "header" in obj or "title" in obj or obj.get("schema") == "2.0"
+        ):
+            return text
+    if not force and (len(text) < _CARD_MIN_CHARS_LOCAL or not _MARKDOWN_HINT_RE.search(text)):
+        return None
+    try:
+        import sys
+        if "/opt/agentos/bridge" not in sys.path:
+            sys.path.insert(0, "/opt/agentos/bridge")
+        # 2.0（老大 2026-09-23 定）：官方《Streaming update card》原文——卡片 JSON 2.0 支持
+        # 客户端 7.20+；低版本客户端才会显示「请升级至最新版本客户端」兜底提示。老大的客户端
+        # 无此提示，故走 2.0（支持表格/代码块/分割线与卡片级流式更新）。档位随
+        # FEISHU_CARD_SCHEMA（默认 2.0），回退 1.0 只需设该环境变量。
+        from feishu_egress import build_card
+    except Exception:
+        return None
+    first = next((line for line in text.splitlines() if line.strip()), "")
+    title = _strip_markdown_to_plain_text(first).strip()[:80]
+    return build_card(text, title=title)
 
 
 # --- Post payload builders and parsers ---
@@ -1657,6 +1796,14 @@ class FeishuAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="Not connected")
 
         formatted = self.format_message(content)
+        if not _send_dedupe_disabled():
+            _prev_id = _send_dedupe_lookup(chat_id, formatted)
+            if _prev_id:
+                logger.warning(
+                    "[Feishu] 重复最终投递已抑制（同内容 %.0fs 内重复，chat=%s，沿用 message_id=%s）",
+                    _SEND_DEDUPE_WINDOW_S, chat_id, _prev_id,
+                )
+                return SendResult(success=True, message_id=_prev_id, raw_response={"dedupe": True})
         chunks = self.truncate_message(formatted, self.MAX_MESSAGE_LENGTH)
         # Decide markdown-vs-text once for the whole message: a chunk of a long
         # markdown reply may be plain prose that fails the per-chunk regex and would
@@ -1683,10 +1830,14 @@ class FeishuAdapter(BasePlatformAdapter):
                         chat_id=chat_id, msg_type=msg_type, payload=payload, reply_to=reply_to, metadata=metadata,
                     )
                 except Exception as exc:
-                    if msg_type != "post" or not _POST_CONTENT_INVALID_RE.search(str(exc)):
+                    if msg_type == "interactive":
+                        logger.warning("[Feishu] Card payload rejected by API; falling back to plain text")
+                        response = await _send_plain(chunk)
+                    elif msg_type != "post" or not _POST_CONTENT_INVALID_RE.search(str(exc)):
                         raise
-                    logger.warning("[Feishu] Invalid post payload rejected by API; falling back to plain text")
-                    response = await _send_plain(chunk)
+                    else:
+                        logger.warning("[Feishu] Invalid post payload rejected by API; falling back to plain text")
+                        response = await _send_plain(chunk)
                 if (
                     msg_type == "post"
                     and not self._response_succeeded(response)
@@ -1696,7 +1847,10 @@ class FeishuAdapter(BasePlatformAdapter):
                     response = await _send_plain(chunk)
                 last_response = response
 
-            return self._finalize_send_result(last_response, "send failed")
+            _result = self._finalize_send_result(last_response, "send failed")
+            if getattr(_result, "success", False) and not _send_dedupe_disabled():
+                _send_dedupe_record(chat_id, formatted, getattr(_result, "message_id", None))
+            return _result
         except Exception as exc:
             logger.error("[Feishu] Send error: %s", exc, exc_info=True)
             return SendResult(success=False, error=str(exc))
@@ -2206,8 +2360,67 @@ class FeishuAdapter(BasePlatformAdapter):
                 return self._handle_approval_card_action(event=event, action_value=action_value, loop=loop)
             if action_value.get("hermes_update_prompt_action"):
                 return self._handle_update_prompt_card_action(event=event, action_value=action_value, loop=loop)
+            if action_value.get("hermes_ctl"):
+                return self._handle_control_card_action(event=event, action_value=action_value, loop=loop)
         self._submit_on_loop(loop, self._handle_card_action_event(data))
         return self._card_response()
+
+    def _handle_control_card_action(self, *, event: Any, action_value: Dict[str, Any], loop: Any = None) -> Any:
+        """石头 2026-09-26：群内「平台控制台」卡按钮 → 控制面动作，结果就地写回卡片。
+
+        与 approval 卡同形：同步执行 + 返回更新后的卡（唯一能一次同步所有客户端的方式）。
+        2026-09-26 加固：多返回一个 toast（点完立刻弹提示），并异步用 message.update
+        把卡面推给所有端 —— 只靠回调响应的话，除了点击者那端，别人看不到卡面变化。
+        """
+        card_data: Optional[Dict[str, Any]] = None
+        toast_data: Optional[Dict[str, Any]] = None
+        message_id = ""
+        try:
+            import sys as _sys
+
+            _sys.path.insert(0, "/opt/agentos/bridge")
+            from card_control import execute_card_command
+
+            context = getattr(event, "context", None)
+            operator = getattr(event, "operator", None)
+            result = execute_card_command(
+                str(action_value.get("hermes_ctl") or ""),
+                chat_id=str(getattr(context, "open_chat_id", "") or ""),
+                open_id=str(getattr(operator, "open_id", "") or ""),
+                user_id=str(getattr(operator, "user_id", "") or ""),
+            )
+            card_data = result.get("card")
+            toast_data = result.get("toast")
+            message_id = str(getattr(context, "open_message_id", "") or "")
+            if message_id and card_data and loop is not None:
+                self._submit_on_loop(
+                    loop, self._push_interactive_card(message_id=message_id, card=card_data),
+                )
+            logger.warning("[Feishu] control card action %s → ok=%s msg=%s",
+                           action_value.get("hermes_ctl"), result.get("ok"), message_id or "-")
+        except Exception:
+            logger.warning("[Feishu] control card action failed", exc_info=True)
+        return self._card_response(card_data, toast=toast_data)
+
+    async def _push_interactive_card(self, *, message_id: str, card: Dict[str, Any]) -> None:
+        """把控制卡卡面推给所有端（点击者那端已由回调响应就地更新，其他端靠这一步）。"""
+        if not self._client or not message_id:
+            return
+        try:
+            import json as _json
+
+            body = self._build_update_message_body(
+                msg_type="interactive", content=_json.dumps(card, ensure_ascii=False),
+            )
+            request = self._build_update_message_request(message_id=message_id, request_body=body)
+            response = await self._run_blocking(self._client.im.v1.message.update, request)
+            outcome = self._finalize_send_result(response, "card push failed")
+            logger.warning(
+                "[Feishu] control card pushed to all clients ok=%s msg=%s err=%s",
+                getattr(outcome, "success", None), message_id, getattr(outcome, "error", None),
+            )
+        except Exception:
+            logger.warning("[Feishu] control card push failed msg=%s", message_id, exc_info=True)
 
     @staticmethod
     def _loop_accepts_callbacks(loop: Any) -> bool:
@@ -2237,11 +2450,20 @@ class FeishuAdapter(BasePlatformAdapter):
         return "*" in allowed_ids or normalized in allowed_ids
 
     @staticmethod
-    def _card_response(card_data: Optional[dict[str, Any]] = None) -> Any:
-        """Synchronous card-callback response; ``card_data`` updates the card inline."""
+    def _card_response(card_data: Optional[dict[str, Any]] = None, toast: Optional[dict[str, Any]] = None) -> Any:
+        """Synchronous card-callback response; ``card_data`` updates the card inline.
+
+        ``toast`` 是老板点完立刻弹的那行提示（2026-09-26 加：只改卡面太难被看见，
+        点完没提示会被当成「卡片没用」）。
+        """
         if P2CardActionTriggerResponse is None:
             return None
         response = P2CardActionTriggerResponse()
+        if toast and CallBackToast is not None:
+            item = CallBackToast()
+            item.type = str(toast.get("type") or "info")
+            item.content = str(toast.get("content") or "")
+            response.toast = item
         if card_data is not None and CallBackCard is not None:
             card = CallBackCard()
             card.type = "raw"
@@ -3626,6 +3848,28 @@ class FeishuAdapter(BasePlatformAdapter):
         # lets ``send`` treat the chunk as part of a larger markdown document: when a long markdown reply is
         # split at MAX_MESSAGE_LENGTH, the per-chunk regex would otherwise mis-classify a plain-prose chunk
         # as ``text``. See #26841.
+        #
+        # 2026-08-06: boss — hide fenced code / terminal dumps on Feishu.
+        # (2026-09-22 升级后重新应用：hermes update 会把它 autostash 收走)
+        # 2026-09-23: 老大要求「字体小一点、一屏看得全」→ 命中 markdown 的回复
+        # 转纯文本写法并强制走 text（post 富文本字体偏大）。开关：$HERMES_HOME/.feishu_plain_reply
+        try:
+            import sys
+            if "/opt/agentos/bridge" not in sys.path:
+                sys.path.insert(0, "/opt/agentos/bridge")
+            from feishu_response_clean import hide_feishu_code_blocks, plain_reply_enabled, to_plain_feishu
+            content = hide_feishu_code_blocks(content or "")
+            # 2026-09-23: 老大要「跟水水一样的卡片外观」→ 出站升级为 interactive 卡片（1.0）。
+            # 实测：1.0 在客户端渲染为彩色标题栏 + 正文；2.0 在本租户被降级成「请升级客户端」占位。
+            if _local_card_reply_enabled():
+                _card_payload = _local_card_payload(content, force=_card_stream_enabled())
+                if _card_payload:
+                    logger.info("[Feishu] local card render (%d chars)", len(_card_payload))
+                    return "interactive", _card_payload
+            if plain_reply_enabled():
+                return "text", json.dumps({"text": to_plain_feishu(content)}, ensure_ascii=False)
+        except Exception:
+            pass
         if prefer_post or _MARKDOWN_HINT_RE.search(content):
             return "post", _build_markdown_post_payload(content)
         return "text", json.dumps({"text": content}, ensure_ascii=False)

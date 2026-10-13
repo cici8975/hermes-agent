@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional
 from agent.message_metadata import append_message
 from agent.reasoning_promotion import answer_in_reasoning_capability
 from agent.repetition_guard import STOP_PATH_MIN_CHARS, is_runaway_repetition
+from agent.runaway_mitigation import note_runaway
 from agent.turn_failure_copy import stamp_failure
 from agent.turn_empty_response import recover_empty_response
 from agent.turn_stop_gates import apply_stop_gates
@@ -273,6 +274,11 @@ def finish_text_response(
         and is_runaway_repetition(final_response)
     ):
         line, user_response, error = _REPETITION_STOPPED
+        # ②/④ runaway mitigation: arm the session downgrade and, on the 3rd trip in 24h,
+        # soft-archive the session; the ④ alert rides the user-facing copy.
+        _runaway_mitigation = note_runaway(agent, site="stop_path")
+        if _runaway_mitigation.alert:
+            user_response = f"{user_response}\n\n{_runaway_mitigation.alert}"
         agent._vprint(f"{agent.log_prefix}{line}", force=True, diagnostic=True)
         agent._cleanup_task_resources(effective_task_id)
         agent._persist_session(messages, conversation_history)
