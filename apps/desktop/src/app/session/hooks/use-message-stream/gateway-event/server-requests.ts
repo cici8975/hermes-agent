@@ -38,7 +38,7 @@ import {
   previewScopeForRuntime,
   storedSessionIdForRuntimeId
 } from '@/store/session-states'
-import { parkSetupBeat } from '@/store/setup-beat'
+import { parkSetupBeat, type SetupBeatCard } from '@/store/setup-beat'
 import { parkThemePick } from '@/store/theme-pick'
 import { requestScrollToBottom } from '@/store/thread-scroll'
 import { $toursEnabled } from '@/store/tours'
@@ -742,14 +742,13 @@ const setupBeat: Handler = ctx => {
     return
   }
 
-  const { card } = request.params
   const question = str(request.params.question)
 
   rememberServerRequest(request)
   parkSetupBeat({
     beat,
-    // SAFETY: a non-array object is the contract's `card: Record<string, unknown>`.
-    card: typeof card === 'object' && card !== null && !Array.isArray(card) ? (card as Record<string, unknown>) : {},
+    // SAFETY: tools/setup_beat_tool.py::_card builds every card from agent/onboarding_flow.py::BEATS.
+    card: (request.params.card ?? {}) as SetupBeatCard,
     question,
     requestId: request.id,
     sessionId

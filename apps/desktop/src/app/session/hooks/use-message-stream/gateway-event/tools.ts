@@ -6,6 +6,7 @@ import { noteSetupBeatResult } from '@/store/onboarding-run'
 import { flashPetActivity, setPetActivity } from '@/store/pet'
 import { recordPreviewArtifact, reofferPreviewArtifact } from '@/store/preview-status'
 import { $sessionStates, storedSessionIdForRuntimeId } from '@/store/session-states'
+import { setupBeatResult } from '@/store/setup-beat'
 import { isTerminalSubagentCompletion, pruneDelegateFallbackSubagents, upsertSubagent } from '@/store/subagents'
 import { reportMcpToolResult } from '@/store/suggestion-providers/repair'
 import { invalidateSkillSuggestionIndex } from '@/store/suggestion-providers/skill'
@@ -107,7 +108,7 @@ export function handleToolEvent(ctx: GatewayEventContext): boolean {
       }
 
       if (payload?.name === 'setup_beat' && !event.replayed) {
-        noteSetupBeatResult(payload.result)
+        noteSetupBeatResult(setupBeatResult(payload.result))
       }
 
       if (isActiveEvent) {

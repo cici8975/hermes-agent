@@ -11,23 +11,28 @@ import { AccentPickerCard } from '@/components/assistant-ui/theme-picker/accent-
 import { LayoutPickerCard } from '@/components/assistant-ui/theme-picker/layout-picker-card'
 import { cn } from '@/lib/utils'
 import { applyAppearance } from '@/store/appearance-apply'
-import { $setupBeatRequests, answerSetupBeat, type SetupBeatRequest } from '@/store/setup-beat'
+import {
+  $setupBeatRequests,
+  answerSetupBeat,
+  type SetupBeatAnswer,
+  type SetupBeatRequest,
+  setupBeatResult
+} from '@/store/setup-beat'
 
 import { ToolFallback } from '../tool/fallback'
 
-import { beatOptions, NameCard, OptionsCard } from './beat-cards'
+import { NameCard, OptionsCard } from './beat-cards'
 import { PluginsCard } from './plugins-card'
 import {
   SETUP_BEAT_LABEL_CLASS,
   SETUP_BEAT_SHELL_CLASS,
-  setupBeatFailed,
   type SetupBeatOutcome,
   setupBeatOutcome,
   SetupBeatReceipt
 } from './receipt'
 
 /** The card body for one beat; `answer` sends the beat's picks and settles the card. */
-function BeatBody({ answer, request }: { answer: (picks: Record<string, unknown>) => void; request: SetupBeatRequest }) {
+function BeatBody({ answer, request }: { answer: (picks: SetupBeatAnswer) => void; request: SetupBeatRequest }) {
   const { card } = request
 
   switch (request.beat) {
@@ -35,7 +40,7 @@ function BeatBody({ answer, request }: { answer: (picks: Record<string, unknown>
       return (
         <NameCard
           onName={name => answer({ name })}
-          suggested={typeof card.suggested === 'string' ? card.suggested : undefined}
+          suggested={Array.isArray(card.suggested) ? undefined : card.suggested}
         />
       )
 
@@ -62,7 +67,7 @@ function BeatBody({ answer, request }: { answer: (picks: Record<string, unknown>
       )
 
     case 'plugins':
-      return <PluginsCard card={card} onContinue={installed => answer({ installed })} />
+      return <PluginsCard names={card.plugins ?? []} onContinue={installed => answer({ installed })} />
 
     case 'tour':
 
@@ -77,10 +82,6 @@ function BeatBody({ answer, request }: { answer: (picks: Record<string, unknown>
     case 'connectors':
       return null
   }
-}
-
-function suggestedSlugs(card: Record<string, unknown>): string[] {
-  return Array.isArray(card.suggested) ? card.suggested.filter((slug): slug is string => typeof slug === 'string') : []
 }
 
 function BeatShell({ beat, children, question }: { beat: SetupBeat; children: ReactNode; question: string }) {
@@ -100,11 +101,13 @@ export function SetupBeatTool(props: ToolCallMessagePartProps) {
   const [settled, setSettled] = useState<null | SetupBeatOutcome>(null)
 
   if (props.result !== undefined) {
-    if (setupBeatFailed(props.result)) {
+    const result = setupBeatResult(props.result)
+
+    if (result.error !== undefined) {
       return <ToolFallback {...props} />
     }
 
-    const outcome = setupBeatOutcome(props.result)
+    const outcome = setupBeatOutcome(result)
 
     return outcome ? <SetupBeatReceipt outcome={outcome} /> : null
   }
@@ -120,7 +123,7 @@ export function SetupBeatTool(props: ToolCallMessagePartProps) {
     return null
   }
 
-  const answer = (picks: Record<string, unknown>) => {
+  const answer = (picks: SetupBeatAnswer) => {
     if (answerSetupBeat(sessionId, picks)) {
       setSettled({ answer: picks, beat: request.beat, kind: 'answer' })
     }
@@ -132,7 +135,7 @@ export function SetupBeatTool(props: ToolCallMessagePartProps) {
         {request.question && <span className={cn(SETUP_BEAT_LABEL_CLASS, 'px-3.5')}>{request.question}</span>}
         <ConnectorDirectoryCard
           onContinue={({ connected, newly_connected }) => answer({ connected, newly_connected })}
-          suggested={suggestedSlugs(request.card)}
+          suggested={Array.isArray(request.card.suggested) ? request.card.suggested : []}
         />
       </div>
     )

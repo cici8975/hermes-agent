@@ -15,9 +15,6 @@ import type { ConnectionOwner } from '@/store/connection-request'
 import { requestGatewayForAgent } from '@/store/gateway'
 import { openCatalogPluginInstall } from '@/store/plugin-catalog-install'
 
-const pluginNames = (card: Record<string, unknown>): string[] =>
-  Array.isArray(card.plugins) ? card.plugins.filter((name): name is string => typeof name === 'string') : []
-
 async function readPresence(owner: ConnectionOwner, names: string[]): Promise<CatalogPluginPresence[]> {
   const result = await requestGatewayForAgent<PluginsManageResult>(owner.connectionId, owner.profile, 'plugins.manage', {
     action: 'presence',
@@ -37,18 +34,11 @@ async function openInstall(name: string, profile: string): Promise<void> {
 
 /** The plugins this OS runs, from the card payload; Install opens the reviewed install dialog in place,
  *  Continue answers with the ones installed. */
-export function PluginsCard({
-  card,
-  onContinue
-}: {
-  card: Record<string, unknown>
-  onContinue: (installed: string[]) => void
-}) {
+export function PluginsCard({ names, onContinue }: { names: string[]; onContinue: (installed: string[]) => void }) {
   const { t } = useI18n()
   const copy = t.firstRun
   const storedId = useStore(useSessionView().$storedId)
   const owner = useConnectionOwner(storedId, true)
-  const names = pluginNames(card)
   const plugins = useStore($agentPlugins)
 
   const presence = useQuery({
@@ -58,9 +48,7 @@ export function PluginsCard({
     staleTime: Infinity
   })
 
-  const installed = new Set(
-    plugins.flatMap(row => [row.catalog_name, row.name]).filter((name): name is string => Boolean(name))
-  )
+  const installed = new Set(plugins.flatMap(row => (row.catalog_name ? [row.catalog_name, row.name] : [row.name])))
 
   const rows = presence.data ?? []
 

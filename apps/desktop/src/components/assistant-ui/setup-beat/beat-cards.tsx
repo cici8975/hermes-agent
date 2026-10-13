@@ -6,26 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Chip } from '@/components/ui/chip'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
-
-export interface BeatOption {
-  id: string
-  label: string
-}
-
-/** The `options` rows of a card payload (layout, tour, build); malformed rows are left out. */
-export function beatOptions(card: Record<string, unknown>): BeatOption[] {
-  const rows = Array.isArray(card.options) ? card.options : []
-
-  return rows.flatMap(row => {
-    if (typeof row !== 'object' || row === null) {
-      return []
-    }
-
-    const { id, label } = row as Record<string, unknown>
-
-    return typeof id === 'string' && typeof label === 'string' ? [{ id, label }] : []
-  })
-}
+import type { BeatOption } from '@/store/setup-beat'
 
 /** A text box for the name. The OS account's full name is offered as a row and is sent only when picked. */
 export function NameCard({ onName, suggested }: { onName: (name: string) => void; suggested?: string }) {

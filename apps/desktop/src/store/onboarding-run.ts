@@ -11,13 +11,15 @@ import type { MachineFactsResult, OnboardingRunStateResult, OnboardingStartResul
 import { atom } from 'nanostores'
 
 import { getRuntimeI18nLocale } from '@/i18n/runtime'
+import type { GatewayRequester } from '@/lib/yolo-session'
 
 import { $onboardingPhase } from './onboarding-phase'
 import { markOnboardingDecided, setOnboardingSurfaceActive } from './onboarding-presence'
 import { ensureGatewayProfile } from './profile'
 import { $connection } from './session'
+import type { SetupBeatToolResult } from './setup-beat'
 
-export type OnboardingRequest = <T>(method: string, params?: Record<string, unknown>) => Promise<T>
+export type OnboardingRequest = GatewayRequester
 
 /** Opens a stored session on screen, replacing the route (`useSessionActions().resumeSession`). */
 export type OnboardingResume = (storedId: string, replaceRoute?: boolean) => Promise<void>
@@ -60,17 +62,23 @@ async function factsSource(request: OnboardingRequest): Promise<'local' | 'remot
   return same ? 'local' : 'remote'
 }
 
+interface StartOptions {
+  /** Points the window's gateway at the profile onboarding runs in (`store/profile.ts::ensureGatewayProfile`). */
+  ensureProfile?: (profile: string) => Promise<void>
+  rerun?: boolean
+}
+
 /** Open the onboarding chat (a new one for a rerun, else the run in progress or a new one). */
 export async function startOnboarding(
   request: OnboardingRequest,
   resume: OnboardingResume,
-  { rerun = false }: { rerun?: boolean } = {}
+  { ensureProfile = ensureGatewayProfile, rerun = false }: StartOptions = {}
 ): Promise<boolean> {
   $onboardingPhase.set('shown')
   $onboardingEnded.set(null)
 
   try {
-    await ensureGatewayProfile(ONBOARDING_PROFILE)
+    await ensureProfile(ONBOARDING_PROFILE)
 
     const started = await request<OnboardingStartResult>('onboarding.start', {
       facts_source: await factsSource(request),
@@ -98,19 +106,23 @@ let decision: null | Promise<void> = null
  * this install and the free tier can drive it. First-run surfaces wait until this has answered; the
  * presence surface is set before the answer is published, so they never see a clear moment in between.
  */
-export function decideOnboarding(request: OnboardingRequest, resume: OnboardingResume): Promise<void> {
-  decision ??= readAndStart(request, resume)
+export function decideOnboarding(
+  request: OnboardingRequest,
+  resume: OnboardingResume,
+  options?: StartOptions
+): Promise<void> {
+  decision ??= readAndStart(request, resume, options)
 
   return decision
 }
 
 
-async function readAndStart(request: OnboardingRequest, resume: OnboardingResume): Promise<void> {
+async function readAndStart(request: OnboardingRequest, resume: OnboardingResume, options?: StartOptions): Promise<void> {
   try {
     const state = await request<OnboardingRunStateResult>('onboarding.state')
 
     if (state.run && state.eligible) {
-      await startOnboarding(request, resume)
+      await startOnboarding(request, resume, options)
     }
   } catch (error) {
     console.warn('[onboarding] state could not be read', error)
@@ -142,24 +154,10 @@ export async function skipOnboarding(request: OnboardingRequest, runtimeId: stri
 }
 
 /** A `setup_beat` result that ends the run: `completed` (the model said done) or `skipped_all`. */
-export function noteSetupBeatResult(result: unknown): void {
-  const value = typeof result === 'string' ? parseJson(result) : result
-
-  if (typeof value !== 'object' || value === null) {
-    return
-  }
-
-  if ('completed' in value && value.completed === true) {
+export function noteSetupBeatResult(result: SetupBeatToolResult): void {
+  if (result.completed) {
     endOnboarding('done')
-  } else if ('skipped_all' in value && value.skipped_all === true) {
+  } else if (result.skipped_all) {
     endOnboarding('skipped')
-  }
-}
-
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text)
-  } catch {
-    return null
   }
 }
