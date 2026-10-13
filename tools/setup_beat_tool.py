@@ -20,9 +20,10 @@ BEATS = ("next", *flow.BEAT_IDS, "done")
 
 
 def _direct_event(beat: str, args: Mapping[str, Any]) -> flow.Event | None:
-    """An event the call carries in itself (no card): done, a value given in words, or a skip."""
+    """An event the call carries in itself (no card): done, a value given in words, or a skip. Only the
+    Skip setup button (onboarding.skip) ends onboarding early; the model never decides the user quit."""
     if beat == "done":
-        return flow.SkipAll() if args.get("skip") else flow.Done()
+        return flow.Done()
     if args.get("skip"):
         return flow.Skipped(beat)
     value = args.get("value")
@@ -97,8 +98,8 @@ SETUP_BEAT_SCHEMA = {
         "Run the first-run onboarding in this chat. Shows the card for a beat and waits for the user, then "
         "returns their answer and what to do next. beat=next shows the next beat. Pass value to record an answer "
         "they gave in words, skip to record that they skipped a beat. beat=done ends onboarding after the first "
-        "build is shown and its close card is answered; beat=done with skip=true ends it early because they "
-        "asked to stop."
+        "build is shown and its close card is answered. Nothing here ends it early: a user who wants to stop "
+        "presses Skip setup."
     ),
     "parameters": {
         "type": "object",

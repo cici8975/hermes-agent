@@ -107,6 +107,9 @@ def test_skip_setup_during_a_card_returns_skipped_all(db, desktop):
 def test_done_ends_the_run_only_after_the_build_card(db, desktop):
     onboarding_record.start(db, SID, FACTS)
     refused = call(db, desktop, beat="done")
+    # The model cannot end it early: a user who wants to stop is pointed at the Skip setup button.
+    quit_in_words = call(db, desktop, beat="done", skip=True)
+    assert "Skip setup" in quit_in_words["error"] and onboarding_record.load(db, SID)["phase"] == "onboarding"
     desktop.replies.append({"answer": {"build": "week"}})
     build = call(db, desktop, beat="build")
     done = call(db, desktop, beat="done")

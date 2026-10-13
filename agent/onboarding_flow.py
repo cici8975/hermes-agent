@@ -308,7 +308,8 @@ def _skip_all(record: dict, event: SkipAll, facts: Facts, now: float) -> Step:
 def _done(record: dict, event: Done, facts: Facts, now: float) -> Step:
     if record["beats"]["build"] == PENDING:
         return Step(record, {"error": "Onboarding ends after the first build is shown and its close card is "
-                                      "answered.", "next": _next_field(record)})
+                                      "answered. If they want to stop, tell them about the Skip setup button.",
+                             "next": _next_field(record)})
     record["beats"]["build"] = DONE
     record.update(phase=COMPLETE, ended_by="done", waiting=None)
     return Step(record, {"completed": True}, "complete")
