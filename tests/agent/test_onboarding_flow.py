@@ -66,6 +66,13 @@ def test_happy_path_settles_every_beat_this_machine_gets_and_completes(machine):
     for step in steps:
         assert ("next" in step.result) is isinstance(step.result.get("answer"), dict)
         assert isinstance(reminder(step.reminder, step.record, facts), str)
+    # Each after_<beat> reminder names the card that really comes next.
+    afters = [step for step in steps if step.reminder.startswith("after_")]
+    assert afters
+    for step in afters:
+        upcoming = next_beat(step.record)
+        expected = f"shows the {upcoming} card" if upcoming else 'setup_beat(beat="done")'
+        assert expected in reminder(step.reminder, step.record, facts), step.reminder
 
 
 @pytest.mark.parametrize("machine", sorted(MACHINES))
