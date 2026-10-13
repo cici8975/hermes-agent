@@ -18,6 +18,7 @@ from agent.error_classifier import FailoverReason
 from agent.agent_runtime_helpers_placeholders import hidden_interrupt_placeholder_row
 from agent.message_metadata import append_message
 from agent.repetition_guard import REPETITION_LOOP_INTERRUPTED, is_runaway_repetition
+from agent.runaway_mitigation import note_runaway
 from agent.turn_failure_copy import site_copy, stamp_failure
 
 logger = logging.getLogger("agent.conversation_loop")
@@ -199,6 +200,12 @@ def handle_api_interrupt(
         # transcript, a neutral api_content so the pre-call sanitizer does not re-heal it.
         append_message(messages, hidden_interrupt_placeholder_row())
         final_response = REPETITION_LOOP_INTERRUPTED
+        # ②/④ runaway mitigation: arm this session's one-tier downgrade and, on the 3rd trip
+        # in 24h, soft-archive it. This path's final_response is a hidden placeholder, so the
+        # ④ alert goes out on the status channel.
+        _runaway_mitigation = note_runaway(agent, site="interrupt")
+        if _runaway_mitigation.alert:
+            agent._emit_diagnostic_status(_runaway_mitigation.alert)
     elif _partial:
         append_message(messages, {
             "role": "assistant", "content": _partial, "display_metadata": {"interrupted": True},

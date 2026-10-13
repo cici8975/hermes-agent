@@ -51,6 +51,7 @@ from agent.reasoning_summaries import (
     streamed_reasoning_detail_text,
 )
 from agent.repetition_guard import RunawayStreamWatch, is_repetition_dominated
+from agent.runaway_mitigation import downgrade_wire_reasoning, note_runaway
 from agent.stream_single_writer import claim_stream_writer, stream_writer_is_current
 from tools.terminal_tool_lifecycle import is_persistent_env
 from utils import base_url_host_matches, base_url_hostname, env_float, env_int
@@ -1322,7 +1323,7 @@ def _consume_ephemeral_reasoning_off(agent) -> bool:
     return consumed
 
 
-def _reasoning_config_for_wire(agent):
+def _reasoning_config_for_wire_impl(agent):
     """``agent.reasoning_config`` with the one-shot reasoning-off override applied.
 
     Once the route has answered a disable with "reasoning is mandatory"
@@ -1371,6 +1372,17 @@ def _reasoning_config_for_wire(agent):
     # disable (drop the disable) from a rejected level (drop the reasoning fields).
     agent._wire_reasoning_config = cfg
     return cfg
+
+
+def _reasoning_config_for_wire(agent):
+    """② Runaway mitigation: the wire reasoning config with the session downgrade applied.
+
+    ``_reasoning_config_for_wire_impl`` resolves ``agent.reasoning_config`` and its
+    disable/floor overrides; a session that has tripped the repetition guard then sends one
+    effort tier lower for the rest of the session (``agent.runaway_mitigation``). Global
+    config is never touched.
+    """
+    return downgrade_wire_reasoning(agent, _reasoning_config_for_wire_impl(agent))
 
 
 def _alias_tool_search_bridge_for_xai(agent, transport, tools_for_api):
@@ -3208,9 +3220,11 @@ class _StreamingCall(StreamingWaitMonitor):
                         # complete instead of silently discarding the action.
                         self.result["partial_tool_names"].append(name)
 
+        _runaway_alert = ""
         if runaway:
             _close_half_read_stream("runaway_stream_close_failed")
             self._log_runaway_cut(runaway)
+            _runaway_alert = note_runaway(self.agent, site=f"stream:{runaway}").alert
         tool_calls.materialize()
         self._close_managed_stream()
         if self._stream_attempt_was_cancelled(stream_attempt_id):
@@ -3225,6 +3239,9 @@ class _StreamingCall(StreamingWaitMonitor):
         if runaway:
             # Cut, not finished: the length path ends the turn on this mark instead of continuing.
             response._runaway_repetition = True
+            # ④ rides the response like the flag above, so turn_truncation can splice it into the
+            # user-visible copy the way the stop path does; a status emission would not reach it.
+            response._runaway_alert = _runaway_alert
         return response
 
     def _log_runaway_cut(self, channel: str) -> None:
@@ -3492,6 +3509,8 @@ class _StreamingCall(StreamingWaitMonitor):
             message = accumulator.response(_stream_context["stream"].current_message_snapshot)
             message.stop_reason = "max_tokens"
             message._runaway_repetition = True  # same hand-off as the chat_completions wire
+            # ④ rides the message like the flag above; see the chat_completions wire.
+            message._runaway_alert = note_runaway(self.agent, site=f"stream:{runaway}").alert
             return message
         if base_final_message is not None:
             self._check_anthropic_message(base_final_message, tool_drop=False)
