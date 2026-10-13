@@ -2,13 +2,14 @@
  * First-run onboarding as this window runs it: one chat in the default profile, opened by the
  * backend's `onboarding.start`, ended by the model (`setup_beat(beat="done")`) or by Skip setup.
  *
- * This module is the one writer of `$onboardingPhase` and of the `onboarding` presence surface, so
- * the two never disagree: the surface is open exactly while the phase is `shown`. The backend owns
- * whether onboarding is due (`onboarding.state`) and writes the install-level flag when a run ends.
+ * This module is the one writer of `$onboardingPhase` and of the `onboarding` presence surface. The
+ * surface is open while a run is starting or its chat is on screen; in any other chat the app behaves
+ * as it does outside onboarding (tips, the sign-in offer). The backend owns whether onboarding is due
+ * (`onboarding.state`) and writes the install-level flag when a run ends.
  */
 
 import type { MachineFactsResult, OnboardingRunStateResult, OnboardingStartResult } from '@hermes/shared'
-import { atom } from 'nanostores'
+import { atom, computed } from 'nanostores'
 
 import { getRuntimeI18nLocale } from '@/i18n/runtime'
 import type { GatewayRequester } from '@/lib/yolo-session'
@@ -16,7 +17,7 @@ import type { GatewayRequester } from '@/lib/yolo-session'
 import { $onboardingPhase } from './onboarding-phase'
 import { markOnboardingDecided, setOnboardingSurfaceActive } from './onboarding-presence'
 import { ensureGatewayProfile } from './profile'
-import { $connection } from './session'
+import { $connection, $selectedStoredSessionId } from './session'
 import type { SetupBeatToolResult } from './setup-beat'
 
 export type OnboardingRequest = GatewayRequester
@@ -29,16 +30,32 @@ export interface OnboardingSession {
   storedId: string
 }
 
-/** The onboarding chat while a run is on screen in this window. */
+/** The onboarding chat while a run is in progress in this window. */
 export const $onboardingSession = atom<null | OnboardingSession>(null)
 
 /** How the last run in this window ended; the end-of-onboarding surfaces wake on it. */
 export const $onboardingEnded = atom<'done' | 'skipped' | null>(null)
 
+/** When the end-of-onboarding surfaces (the local-model offer) may start their settle wait: the run
+ *  ended, or the user first left its chat mid-run. Null until then. */
+export const $onboardingSettleFrom = atom<null | number>(null)
+
 // The backend runs onboarding in its root profile whichever profile the app was on.
 const ONBOARDING_PROFILE = 'default'
 
-$onboardingPhase.subscribe(phase => setOnboardingSurfaceActive('onboarding', phase === 'shown'))
+/** A run is starting (no chat yet), or its chat is the one on screen. */
+const $onboardingOnScreen = computed(
+  [$onboardingPhase, $onboardingSession, $selectedStoredSessionId],
+  (phase, session, selected) => phase === 'shown' && (!session || session.storedId === selected)
+)
+
+$onboardingOnScreen.subscribe(onScreen => {
+  setOnboardingSurfaceActive('onboarding', onScreen)
+
+  if (!onScreen && $onboardingPhase.get() === 'shown' && $onboardingSettleFrom.get() === null) {
+    $onboardingSettleFrom.set(Date.now())
+  }
+})
 
 /** Same machine as this app (`local`), or a backend somewhere else (`remote`). A local connection is
  *  this machine; any other compares the backend's OS and architecture with Electron's. */
@@ -86,8 +103,9 @@ export async function startOnboarding(
       rerun
     })
 
-    $onboardingSession.set({ runtimeId: started.session_id, storedId: started.stored_session_id })
+    // The chat is on screen before the run names it, so the presence never sees a gap.
     await resume(started.stored_session_id, true)
+    $onboardingSession.set({ runtimeId: started.session_id, storedId: started.stored_session_id })
 
     return true
   } catch (error) {
@@ -116,7 +134,6 @@ export function decideOnboarding(
   return decision
 }
 
-
 async function readAndStart(request: OnboardingRequest, resume: OnboardingResume, options?: StartOptions): Promise<void> {
   try {
     const state = await request<OnboardingRunStateResult>('onboarding.state')
@@ -140,6 +157,7 @@ export function endOnboarding(outcome: 'done' | 'skipped'): void {
   $onboardingPhase.set(outcome)
   $onboardingEnded.set(outcome)
   $onboardingSession.set(null)
+  $onboardingSettleFrom.set($onboardingSettleFrom.get() ?? Date.now())
 }
 
 /** Skip setup: the backend ends the run and closes the card that waits. */
