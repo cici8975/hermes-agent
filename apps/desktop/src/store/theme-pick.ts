@@ -11,6 +11,7 @@ import type { ThemePicker, ThemePickResult } from '@hermes/shared'
 import { atom } from 'nanostores'
 
 import { type AppearanceValues, applyAppearance } from './appearance-apply'
+import { registerParkedCardAnswer } from './parked-card-answers'
 import { respondToServerRequest } from './server-requests'
 
 export interface ThemePickRequest {
@@ -60,3 +61,10 @@ export function pickTheme(sessionId: string, values: AppearanceValues): boolean 
 export function cancelThemePick(sessionId: string): boolean {
   return answer(sessionId, { cancelled: true })
 }
+
+/** Composer text typed while a picker waits answers it as the user's words; the model applies them. */
+export function sayToThemePick(sessionId: string, text: string): boolean {
+  return Boolean(text.trim()) && answer(sessionId, { said: text.trim() })
+}
+
+registerParkedCardAnswer('theme-pick', sayToThemePick)

@@ -24,6 +24,7 @@ import type { SetupField } from '@/components/ui/setup-field-list'
 import { connectorText } from '@/lib/connector-tools'
 
 import { $gateway, requestGatewayForAgent } from './gateway'
+import { registerParkedCardAnswer } from './parked-card-answers'
 import { $activeGatewayProfile } from './profile'
 import { assertSessionOwnerResolved } from './session-owner-resolution'
 import { isSessionOwnerRoute } from './session-request-router'
@@ -525,6 +526,8 @@ export function answerConnectorDirectory(sessionId: string, text: string): boole
 
   return true
 }
+
+registerParkedCardAnswer('connector-directory', answerConnectorDirectory)
 
 // Typing a message while the card is open ends the operation, otherwise the typed message waits behind
 // the blocked tool until the deadline.
